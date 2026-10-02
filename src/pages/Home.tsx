@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Flame, BookOpen, GraduationCap, Gamepad2, Trophy, User, Settings, MessageSquare, Heart, Gift, Star, Sparkles, Egg, Brain, FileText, Library, Smartphone, BarChart3 } from 'lucide-react';
+import { Flame, BookOpen, GraduationCap, Gamepad2, Trophy, User, Settings, MessageSquare, Heart, Gift, Star, Sparkles, Egg, Brain, FileText, Library, Smartphone, BarChart3, Download } from 'lucide-react';
 import { getGreeting, getStreak, getStars, getStickers, lsGet, lsSet, getShopItems, getPartners, getAppLogo } from '@/lib/storage';
 import { t } from '@/lib/i18n';
+import { promptInstall, canInstall, isInstalled } from '@/lib/pwa';
 import { Confetti } from '@/components/Confetti';
 
 interface HomeProps {
@@ -22,6 +23,8 @@ export function Home({ onNavigate }: HomeProps) {
   const [shopItems, setShopItems] = useState(() => getShopItems());
   const [partners, setPartners] = useState(() => getPartners());
   const [appLogo, setAppLogo] = useState(() => getAppLogo());
+  const [installable, setInstallable] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     const recent = lsGet<string[]>('recentWatched', []);
@@ -34,6 +37,11 @@ export function Home({ onNavigate }: HomeProps) {
     };
     window.addEventListener('appLogoChanged', handler);
     window.addEventListener('cloudSynced', handler);
+    
+    // Check PWA installation status
+    setInstallable(canInstall());
+    setInstalled(isInstalled());
+    
     return () => {
       window.removeEventListener('appLogoChanged', handler);
       window.removeEventListener('cloudSynced', handler);
@@ -62,6 +70,11 @@ export function Home({ onNavigate }: HomeProps) {
       setEggOpened(false);
       setShowEgg(false);
     }, 3000);
+  };
+
+  const handleInstall = () => {
+    promptInstall();
+    setInstallable(false);
   };
 
   return (
@@ -100,6 +113,27 @@ export function Home({ onNavigate }: HomeProps) {
       </div>
 
       <div className="px-4 -mt-4">
+        {/* Install Banner - Only show if not installed and installable */}
+        {!installed && installable && (
+          <div className="bg-gradient-to-r from-candy-blue to-candy-purple rounded-2xl p-4 shadow-lg mb-4 animate-slide-up">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 rounded-full p-2 flex-shrink-0">
+                <Download size={20} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">{t('pwa.install')}</p>
+                <p className="text-white/80 text-xs">{t('pwa.install_desc')}</p>
+              </div>
+              <button
+                onClick={handleInstall}
+                className="bg-white rounded-full px-4 py-2 text-candy-purple font-bold text-xs whitespace-nowrap active:scale-95 transition flex-shrink-0"
+              >
+                {t('install.btn')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Top Row - 3 buttons */}
         <div className="flex gap-2 mb-4">
           <button
