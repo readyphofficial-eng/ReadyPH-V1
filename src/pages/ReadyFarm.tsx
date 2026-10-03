@@ -145,6 +145,13 @@ export function ReadyFarm() {
   const [showStall, setShowStall] = useState(false);
   const [showCraft, setShowCraft] = useState(false);
   const floatId = useRef(0);
+  const orchardRef = useRef<HTMLDivElement>(null);
+  const barnRef = useRef<HTMLDivElement>(null);
+  const stallRef = useRef<HTMLDivElement>(null);
+  const scrollToZone = (zone: 'orchard' | 'barn' | 'stall') => {
+    const el = zone === 'orchard' ? orchardRef.current : zone === 'barn' ? barnRef.current : stallRef.current;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const addFloat = useCallback((text: string) => {
     const id = ++floatId.current;
@@ -942,6 +949,27 @@ export function ReadyFarm() {
         )}
       </div>
 
+      {/* Playable Zones */}
+      <div className="px-3 mt-3">
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={() => scrollToZone('orchard')} className="rounded-2xl p-2 bg-gradient-to-br from-green-500 to-green-600 text-white shadow active:scale-95 transition">
+            <Trees size={22} className="mx-auto mb-1" />
+            <p className="font-bold text-xs">Orchard</p>
+            <p className={`text-[9px] opacity-90 ${data.trees.some(t => t.ready) ? 'animate-pulse font-bold' : ''}`}>{data.trees.some(t => t.ready) ? 'Ready fruits!' : 'Growing'}</p>
+          </button>
+          <button onClick={() => scrollToZone('barn')} className="rounded-2xl p-2 bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow active:scale-95 transition">
+            <HomeIcon size={22} className="mx-auto mb-1" />
+            <p className="font-bold text-xs">Barn</p>
+            <p className={`text-[9px] opacity-90 ${animalsReady > 0 ? 'animate-pulse font-bold' : ''}`}>{animalsReady > 0 ? `${animalsReady} ready!` : 'Waiting'}</p>
+          </button>
+          <button onClick={() => scrollToZone('stall')} className="rounded-2xl p-2 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow active:scale-95 transition">
+            <Store size={22} className="mx-auto mb-1" />
+            <p className="font-bold text-xs">Farm Stall</p>
+            <p className={`text-[9px] opacity-90 ${canCompleteOrder ? 'animate-pulse font-bold' : ''}`}>{canCompleteOrder ? 'Sell now!' : 'Need items'}</p>
+          </button>
+        </div>
+      </div>
+
       {/* Farm Grid */}
       <div className="px-3 mt-3">
         <div className="mx-auto rounded-2xl p-2 shadow-inner bg-[#8BC34A]" style={{ maxWidth: 'min(92vw, 560px)' }}>
@@ -997,10 +1025,11 @@ export function ReadyFarm() {
       </div>
 
       {/* Stall Order */}
-      <div className="px-3 mt-3">
-        <div className="bg-white rounded-2xl p-3 shadow">
+      <div ref={stallRef} className="px-3 mt-3 scroll-mt-2">
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3 shadow">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-gray-700 text-sm flex items-center gap-1.5"><Store size={16} className="text-blue-500" /> Farm Stall</h3>
+            {canCompleteOrder && <span className="text-[10px] text-blue-600 font-bold animate-pulse">Order ready to sell!</span>}
             <button onClick={() => setShowStall(true)} className="text-[10px] font-bold text-blue-500">View ›</button>
           </div>
           {currentOrder ? (
@@ -1019,6 +1048,11 @@ export function ReadyFarm() {
               )}
             </div>
           ) : null}
+          {currentOrder && canCompleteOrder && (
+            <button onClick={completeStallOrder} className="mt-2 w-full bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl py-2 text-white font-bold text-xs active:scale-95 transition" style={{ boxShadow: '0 3px 0 #1565c0' }}>
+              Complete Farm Stall Order +{currentOrder.reward}🪙
+            </button>
+          )}
         </div>
       </div>
 
@@ -1057,10 +1091,11 @@ export function ReadyFarm() {
       </div>
 
       {/* Trees */}
-      <div className="px-3 mt-3">
-        <div className="bg-white rounded-2xl p-3 shadow">
+      <div ref={orchardRef} className="px-3 mt-3 scroll-mt-2">
+        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-3 shadow">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-gray-700 text-sm flex items-center gap-1.5"><Trees size={16} className="text-green-600" /> Orchard</h3>
+            {data.trees.some(t => t.ready) && <span className="text-[10px] text-green-600 font-bold animate-pulse">Harvest ready!</span>}
             <span className="text-[10px] text-gray-400">{data.trees.length}/6</span>
           </div>
           {data.trees.length === 0 ? (
@@ -1087,15 +1122,20 @@ export function ReadyFarm() {
               })}
             </div>
           )}
+          {data.trees.some(t => t.ready) && (
+            <button onClick={() => data.trees.forEach((t, i) => { if (t.ready) harvestTree(i); })} className="mt-2 w-full bg-gradient-to-br from-green-500 to-green-600 rounded-xl py-2 text-white font-bold text-xs active:scale-95 transition" style={{ boxShadow: '0 3px 0 #2e7d32' }}>
+              Harvest Orchard
+            </button>
+          )}
         </div>
       </div>
 
       {/* Barn */}
-      <div className="px-3 mt-3">
-        <div className="bg-white rounded-2xl p-3 shadow">
+      <div ref={barnRef} className="px-3 mt-3 scroll-mt-2">
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 shadow">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-gray-700 text-sm flex items-center gap-1.5"><HomeIcon size={16} className="text-amber-600" /> Barn</h3>
-            {animalsReady > 0 && <span className="text-[10px] text-green-500 font-bold animate-pulse">{animalsReady} ready!</span>}
+            {animalsReady > 0 && <span className="text-[10px] text-green-500 font-bold animate-pulse">{animalsReady} ready to collect!</span>}
           </div>
           {data.animals.length === 0 ? (
             <p className="text-xs text-gray-400">Buy animals in the Shop!</p>
@@ -1124,6 +1164,11 @@ export function ReadyFarm() {
                 );
               })}
             </div>
+          )}
+          {animalsReady > 0 && (
+            <button onClick={collectAllAnimals} className="mt-2 w-full bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl py-2 text-white font-bold text-xs active:scale-95 transition" style={{ boxShadow: '0 3px 0 #cc6f00' }}>
+              Collect Barn Products
+            </button>
           )}
         </div>
       </div>
