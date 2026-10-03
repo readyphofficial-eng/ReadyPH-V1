@@ -494,41 +494,11 @@ const createAllSubjects = (): TextbookSubject[] => [
 ];
 
 export const TEXTBOOK_LEVELS: TextbookLevel[] = [
-  {
-    id: 'preschool',
-    name: 'Preschool (Nursery & Kinder)',
-    emoji: '🌈',
-    color: 'from-pink-400 to-purple-500',
-    subjects: createAllSubjects(),
-  },
-  {
-    id: 'elementary',
-    name: 'Elementary School (Grade 1-6)',
-    emoji: '📘',
-    color: 'from-blue-400 to-cyan-500',
-    subjects: createAllSubjects(),
-  },
-  {
-    id: 'junior-high',
-    name: 'Junior High School (Grade 7-8)',
-    emoji: '🎓',
-    color: 'from-indigo-500 to-purple-600',
-    subjects: createAllSubjects(),
-  },
-  {
-    id: 'senior-high',
-    name: 'Senior High School (Grade 11-12)',
-    emoji: '🏫',
-    color: 'from-green-500 to-teal-700',
-    subjects: createAllSubjects(),
-  },
-  {
-    id: 'senior-specialized',
-    name: 'Senior High Specialized (TVL, STEM, ABM, HUMSS)',
-    emoji: '🔬',
-    color: 'from-purple-700 to-indigo-900',
-    subjects: createAllSubjects(),
-  },
+  { id: 'preschool', name: 'Preschool (Nursery & Kinder)', emoji: '🌈', color: 'from-pink-400 to-purple-500', subjects: createAllSubjects() },
+  { id: 'elementary', name: 'Elementary School (Grade 1-6)', emoji: '📘', color: 'from-blue-400 to-cyan-500', subjects: createAllSubjects() },
+  { id: 'junior-high', name: 'Junior High School (Grade 7-8)', emoji: '🎓', color: 'from-indigo-500 to-purple-600', subjects: createAllSubjects() },
+  { id: 'senior-high', name: 'Senior High School (Grade 11-12)', emoji: '🏫', color: 'from-green-500 to-teal-700', subjects: createAllSubjects() },
+  { id: 'senior-specialized', name: 'Senior High Specialized (TVL, STEM, ABM, HUMSS)', emoji: '🔬', color: 'from-purple-700 to-indigo-900', subjects: createAllSubjects() },
 ];
 
 // Exported functions
