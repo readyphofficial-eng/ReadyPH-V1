@@ -106,62 +106,6 @@ export function Partners() {
   );
 }
 
-interface ShopItemData {
-  logo: string;
-  logoImg: string;
-  title: string;
-  desc: string;
-  subDesc: string;
-  link: string;
-}
-
-export function Shop() {
-  const [shopItems, setShopItems] = useState<ShopItemData[]>(() => getShopItems());
-  useEffect(() => {
-    const handler = () => setShopItems(getShopItems());
-    window.addEventListener('cloudSynced', handler);
-    return () => window.removeEventListener('cloudSynced', handler);
-  }, []);
-  return (
-    <div className="min-h-screen pb-28">
-      <div className="bg-gradient-to-br from-candy-green to-candy-mint px-5 pt-10 pb-6 rounded-b-3xl shadow-lg">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2"><ShoppingBasket size={24} /> 🛒 {t('shop.title')}</h1>
-        <p className="text-white/80 text-sm">{t('shop.subtitle')}</p>
-      </div>
-      <div className="px-4 mt-4 space-y-3">
-        <PartnersRow />
-        {shopItems.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 shadow text-center">
-            <ShoppingBasket size={40} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">{t('shop.empty')}</p>
-          </div>
-        ) : (
-          shopItems.map((item, i) => (
-            <div key={i} className="bg-white rounded-2xl p-3 shadow animate-pop">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-50 shadow flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {item.logoImg ? <img src={item.logoImg} alt={item.title} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.logo || '🛒'}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-700 text-sm truncate">{item.title}</p>
-                  <p className="text-gray-500 text-xs" style={{ fontSize: 12 }}>{item.desc}</p>
-                  {item.subDesc && <span className="inline-block bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5 mt-1 text-[11px] font-bold">{item.subDesc}</span>}
-                </div>
-              </div>
-              <button
-                onClick={() => window.open(item.link, '_blank')}
-                className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-2.5 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
-              >
-                {t('shop.buy_full')}
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function MessageDev() {
   const [name, setName] = useState(() => lsGet<{ name: string }>('profile', { name: '' }).name);
   const [message, setMessage] = useState('');

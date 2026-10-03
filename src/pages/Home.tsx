@@ -85,7 +85,7 @@ export function Home({ onNavigate }: HomeProps) {
       <div className="relative z-10">
         {/* Hero */}
         <div className="px-4 pt-6 pb-4">
-          <div className="pixar-card rounded-[32px] bg-white/20 p-4 shadow-2xl">
+          <div className="pixar-card rounded-[32px] bg-slate-900/45 p-4 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-16 h-16 shrink-0 rounded-[24px] bg-white/90 shadow-lg overflow-hidden flex items-center justify-center animate-float border border-white/60">
@@ -96,12 +96,12 @@ export function Home({ onNavigate }: HomeProps) {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/80">{t('app.tagline')}</p>
-                  <h1 className="text-2xl font-black text-white leading-none">Ready PH</h1>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">{t('app.tagline')}</p>
+                  <h1 className="text-2xl font-black text-white leading-none drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)]">Ready PH</h1>
                 </div>
               </div>
 
-              <div className="pixar-chip bg-white/20 rounded-full px-3 py-2 text-white">
+              <div className="pixar-chip bg-black/30 rounded-full px-3 py-2 text-white">
                 <div className="flex items-center gap-2 font-bold text-sm">
                   <Flame size={16} className="text-yellow-200" />
                   <span>{streak.current} {t('home.streak_days')}</span>
@@ -111,10 +111,10 @@ export function Home({ onNavigate }: HomeProps) {
 
             <div className="mt-5 flex items-end justify-between gap-3">
               <div>
-                <p className="text-white/90 text-sm">{getGreeting()},</p>
-                <p className="text-white text-2xl font-black leading-tight">{t('home.greeting')}! 👋</p>
+                <p className="text-white text-sm font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">{getGreeting()},</p>
+                <p className="text-white text-2xl font-black leading-tight drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)]">{t('home.greeting')}! 👋</p>
               </div>
-              <div className="pixar-chip bg-white/20 rounded-full px-3 py-2 text-white">
+              <div className="pixar-chip bg-black/30 rounded-full px-3 py-2 text-white">
                 <div className="flex items-center gap-2 font-bold text-sm">
                   <Star size={16} className="text-yellow-200 fill-yellow-200" />
                   <span>{stars}</span>
