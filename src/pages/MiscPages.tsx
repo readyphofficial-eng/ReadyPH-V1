@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Heart, Copy, Check, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Handshake, ShoppingBasket, X, ShieldCheck, Search, MapPin, Package, CreditCard, TimerReset, ShoppingCart, ArrowRight } from 'lucide-react';
 import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, clearAppLogo, setAppLogo, getShopFavorites, toggleShopFavorite, incrementShopClicks, getShopClicks } from '@/lib/storage';
-import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/cloud';
+import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/sync';
 import { t } from '@/lib/i18n';
 import type { VideoCategory, ShopItem, Partner } from '@/types';
 
