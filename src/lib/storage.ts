@@ -181,8 +181,8 @@ export function restoreData(file: File): Promise<void> {
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result as string) as Record<string, string>;
-      Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, v));
-      resolve();
+        Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, v));
+        resolve();
       } catch {
         reject(new Error('Invalid backup file'));
       }
@@ -248,7 +248,6 @@ export function generateIdNumber(): string {
   return `READY-2025-${num}`;
 }
 
-// ---- App Logo (owner-uploaded) ----
 export function getAppLogo(): string {
   return lsRaw('appLogo', '');
 }
@@ -261,25 +260,81 @@ export function clearAppLogo(): void {
   localStorage.removeItem('appLogo');
 }
 
-// ---- Online Shop (replaced Freebies) ----
 export interface ShopItem {
+  id: string;
   logo: string;
   logoImg: string;
   title: string;
   desc: string;
   subDesc: string;
   link: string;
+  category: string;
+  images: string[];
+  clicks: number;
+}
+
+export function generateShopItemId(title: string, link: string): string {
+  const base = `${title}-${link}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'shop-item';
+  return `${base}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function normalizeShopItem(raw: Partial<ShopItem> & { title?: string; link?: string }): ShopItem {
+  const title = raw.title || 'Shop Item';
+  const link = raw.link || '';
+  const category = raw.category || 'General';
+  const images = Array.isArray(raw.images)
+    ? raw.images.filter((img): img is string => !!img)
+    : raw.logoImg
+      ? [raw.logoImg]
+      : [];
+
+  return {
+    id: raw.id || generateShopItemId(title, link),
+    logo: raw.logo || '🛒',
+    logoImg: raw.logoImg || '',
+    title,
+    desc: raw.desc || '',
+    subDesc: raw.subDesc || '',
+    link,
+    category,
+    images: images.length ? images : (raw.logoImg ? [raw.logoImg] : []),
+    clicks: Number(raw.clicks ?? 0),
+  };
 }
 
 export function getShopItems(): ShopItem[] {
-  return lsGet<ShopItem[]>('shopItems', []);
+  const items = lsGet<Partial<ShopItem>[]>('shopItems', []);
+  return items.map(normalizeShopItem);
 }
 
 export function setShopItems(items: ShopItem[]): void {
-  lsSet('shopItems', items);
+  lsSet('shopItems', items.map(normalizeShopItem));
 }
 
-// ---- Partners (up to 10 slots) ----
+export function getShopFavorites(): string[] {
+  return lsGet<string[]>('shopFavorites', []);
+}
+
+export function toggleShopFavorite(itemId: string): string[] {
+  const favorites = getShopFavorites();
+  const next = favorites.includes(itemId)
+    ? favorites.filter(id => id !== itemId)
+    : [...favorites, itemId];
+  lsSet('shopFavorites', next);
+  return next;
+}
+
+export function incrementShopClicks(itemId: string): void {
+  const counts = lsGet<Record<string, number>>('shopClicks', {});
+  counts[itemId] = (counts[itemId] ?? 0) + 1;
+  lsSet('shopClicks', counts);
+}
+
+export function getShopClicks(itemId: string): number {
+  const counts = lsGet<Record<string, number>>('shopClicks', {});
+  return counts[itemId] ?? 0;
+}
+
 export interface Partner {
   name: string;
   logo: string;
