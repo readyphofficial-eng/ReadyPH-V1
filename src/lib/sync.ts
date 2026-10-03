@@ -11,6 +11,40 @@ export interface ManualVideoRow {
 
 let syncing = false;
 
+// Debouncing for cloud save operations
+const debounceTimers = new Map<string, NodeJS.Timeout>();
+
+function debounce(key: string, fn: () => Promise<void>, delay: number = 1000): void {
+  if (debounceTimers.has(key)) {
+    clearTimeout(debounceTimers.get(key)!);
+  }
+  const timer = setTimeout(() => {
+    fn().catch(err => console.warn(`[sync] debounced ${key} failed:`, err));
+    debounceTimers.delete(key);
+  }, delay);
+  debounceTimers.set(key, timer);
+}
+
+// Retry logic with exponential backoff
+async function retryAsync<T>(
+  fn: () => Promise<T>,
+  maxAttempts: number = 3,
+  delayMs: number = 500
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * Math.pow(2, i)));
+      }
+    }
+  }
+  throw lastError || new Error('Max retry attempts reached');
+}
+
 export async function syncFromCloud(): Promise<void> {
   if (syncing) return;
   syncing = true;
@@ -100,10 +134,14 @@ export async function saveAppConfigToCloud(updates: {
   sponsored_url?: string;
 }): Promise<void> {
   try {
-    const { error } = await supabase.from('app_config').upsert({
-      id: 1,
-      ...updates,
-      updated_at: new Date().toISOString(),
+    const { error } = await retryAsync(async () => {
+      const result = await supabase.from('app_config').upsert({
+        id: 1,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
+      if (result.error) throw result.error;
+      return result;
     });
     if (error) console.warn('[sync] saveAppConfig error:', error.message);
   } catch (err) {
@@ -112,68 +150,92 @@ export async function saveAppConfigToCloud(updates: {
 }
 
 export async function savePartnersToCloud(items: Partner[]): Promise<void> {
-  try {
-    const { error: delErr } = await supabase.from('partners').delete().gte('sort_order', 0);
-    if (delErr) console.warn('[sync] partners delete error:', delErr.message);
-    if (items.length > 0) {
-      const { error: insErr } = await supabase.from('partners').insert(items.map((p, i) => ({
-        name: p.name, logo: p.logo, logo_img: p.logoImg, sort_order: i,
-      })));
-      if (insErr) console.warn('[sync] partners insert error:', insErr.message);
+  debounce('savePartners', async () => {
+    try {
+      await retryAsync(async () => {
+        const { error: delErr } = await supabase.from('partners').delete().gte('sort_order', 0);
+        if (delErr) throw delErr;
+
+        if (items.length > 0) {
+          const { error: insErr } = await supabase.from('partners').insert(items.map((p, i) => ({
+            name: p.name, logo: p.logo, logo_img: p.logoImg, sort_order: i,
+          })));
+          if (insErr) throw insErr;
+        }
+      });
+    } catch (err) {
+      console.warn('[sync] savePartners failed:', err);
     }
-  } catch (err) {
-    console.warn('[sync] savePartners failed:', err);
-  }
+  });
 }
 
 export async function saveShopItemsToCloud(items: ShopItem[]): Promise<void> {
-  try {
-    const { error: delErr } = await supabase.from('shop_items').delete().gte('sort_order', 0);
-    if (delErr) console.warn('[sync] shop_items delete error:', delErr.message);
-    if (items.length > 0) {
-      const { error: insErr } = await supabase.from('shop_items').insert(items.map((s, i) => ({
-        logo: s.logo, logo_img: s.logoImg, title: s.title, description: s.desc, sub_desc: s.subDesc, link: s.link, sort_order: i,
-      })));
-      if (insErr) console.warn('[sync] shop_items insert error:', insErr.message);
+  debounce('saveShopItems', async () => {
+    try {
+      await retryAsync(async () => {
+        const { error: delErr } = await supabase.from('shop_items').delete().gte('sort_order', 0);
+        if (delErr) throw delErr;
+
+        if (items.length > 0) {
+          const { error: insErr } = await supabase.from('shop_items').insert(items.map((s, i) => ({
+            logo: s.logo, logo_img: s.logoImg, title: s.title, description: s.desc, sub_desc: s.subDesc, link: s.link, sort_order: i,
+          })));
+          if (insErr) throw insErr;
+        }
+      });
+    } catch (err) {
+      console.warn('[sync] saveShopItems failed:', err);
     }
-  } catch (err) {
-    console.warn('[sync] saveShopItems failed:', err);
-  }
+  });
 }
 
 export async function saveManualVideosToCloud(items: ManualVideoRow[]): Promise<void> {
-  try {
-    const { error: delErr } = await supabase.from('manual_videos').delete().gte('sort_order', 0);
-    if (delErr) console.warn('[sync] manual_videos delete error:', delErr.message);
-    if (items.length > 0) {
-      const { error: insErr } = await supabase.from('manual_videos').insert(items.map((v, i) => ({
-        title: v.title, url: v.url, category: v.category, description: v.description, date: v.date, sort_order: i,
-      })));
-      if (insErr) console.warn('[sync] manual_videos insert error:', insErr.message);
+  debounce('saveManualVideos', async () => {
+    try {
+      await retryAsync(async () => {
+        const { error: delErr } = await supabase.from('manual_videos').delete().gte('sort_order', 0);
+        if (delErr) throw delErr;
+
+        if (items.length > 0) {
+          const { error: insErr } = await supabase.from('manual_videos').insert(items.map((v, i) => ({
+            title: v.title, url: v.url, category: v.category, description: v.description, date: v.date, sort_order: i,
+          })));
+          if (insErr) throw insErr;
+        }
+      });
+    } catch (err) {
+      console.warn('[sync] saveManualVideos failed:', err);
     }
-  } catch (err) {
-    console.warn('[sync] saveManualVideos failed:', err);
-  }
+  });
 }
 
 export async function saveSupportMediaToCloud(images: string[]): Promise<void> {
-  try {
-    const { error: delErr } = await supabase.from('support_media').delete().gte('sort_order', 0);
-    if (delErr) console.warn('[sync] support_media delete error:', delErr.message);
-    if (images.length > 0) {
-      const { error: insErr } = await supabase.from('support_media').insert(images.map((img, i) => ({
-        image_data: img, sort_order: i,
-      })));
-      if (insErr) console.warn('[sync] support_media insert error:', insErr.message);
+  debounce('saveSupportMedia', async () => {
+    try {
+      await retryAsync(async () => {
+        const { error: delErr } = await supabase.from('support_media').delete().gte('sort_order', 0);
+        if (delErr) throw delErr;
+
+        if (images.length > 0) {
+          const { error: insErr } = await supabase.from('support_media').insert(images.map((img, i) => ({
+            image_data: img, sort_order: i,
+          })));
+          if (insErr) throw insErr;
+        }
+      });
+    } catch (err) {
+      console.warn('[sync] saveSupportMedia failed:', err);
     }
-  } catch (err) {
-    console.warn('[sync] saveSupportMedia failed:', err);
-  }
+  });
 }
 
 export async function saveDevMessageToCloud(msg: { name: string; message: string; date: string }): Promise<void> {
   try {
-    const { error } = await supabase.from('dev_messages').insert(msg);
+    const { error } = await retryAsync(async () => {
+      const result = await supabase.from('dev_messages').insert(msg);
+      if (result.error) throw result.error;
+      return result;
+    });
     if (error) console.warn('[sync] dev_message insert error:', error.message);
   } catch (err) {
     console.warn('[sync] saveDevMessage failed:', err);
@@ -182,7 +244,11 @@ export async function saveDevMessageToCloud(msg: { name: string; message: string
 
 export async function deleteDevMessageFromCloud(date: string): Promise<void> {
   try {
-    const { error } = await supabase.from('dev_messages').delete().eq('date', date);
+    const { error } = await retryAsync(async () => {
+      const result = await supabase.from('dev_messages').delete().eq('date', date);
+      if (result.error) throw result.error;
+      return result;
+    });
     if (error) console.warn('[sync] dev_message delete error:', error.message);
   } catch (err) {
     console.warn('[sync] deleteDevMessage failed:', err);
@@ -191,12 +257,16 @@ export async function deleteDevMessageFromCloud(date: string): Promise<void> {
 
 export async function clearSponsoredFromCloud(): Promise<void> {
   try {
-    const { error } = await supabase.from('app_config').upsert({
-      id: 1,
-      sponsored_brand: '',
-      sponsored_title: '',
-      sponsored_url: '',
-      updated_at: new Date().toISOString(),
+    const { error } = await retryAsync(async () => {
+      const result = await supabase.from('app_config').upsert({
+        id: 1,
+        sponsored_brand: '',
+        sponsored_title: '',
+        sponsored_url: '',
+        updated_at: new Date().toISOString(),
+      });
+      if (result.error) throw result.error;
+      return result;
     });
     if (error) console.warn('[sync] clearSponsored error:', error.message);
   } catch (err) {
