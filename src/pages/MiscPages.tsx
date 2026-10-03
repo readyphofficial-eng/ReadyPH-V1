@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Heart, Copy, Check, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Handshake, ShoppingBasket, X, ShieldCheck, Truck, BadgePercent, Search, Sparkles, TimerReset, ArrowRight, MapPin, CreditCard, ShoppingCart, Package } from 'lucide-react';
-import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, setAppLogo, clearAppLogo } from '@/lib/storage';
-import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/sync';
+import { useState, useEffect, useMemo } from 'react';
+import { Heart, Copy, Check, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Handshake, ShoppingBasket, X, ShieldCheck, Search, MapPin, Package, CreditCard, TimerReset, ShoppingCart, ArrowRight } from 'lucide-react';
+import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, clearAppLogo, setAppLogo, getShopFavorites, toggleShopFavorite, incrementShopClicks, getShopClicks } from '@/lib/storage';
+import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/cloud';
 import { t } from '@/lib/i18n';
 import type { VideoCategory, ShopItem, Partner } from '@/types';
 
@@ -95,7 +95,7 @@ export function Partners() {
             {partners.map((p, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 shadow flex flex-col items-center gap-2 animate-pop" style={{ animationDelay: `${i * 0.05}s` }}>
                 <div className="w-14 h-14 rounded-full bg-gray-50 shadow flex items-center justify-center overflow-hidden">
-                  {p.logoImg ? <img src={p.logoImg} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-2xl">{p.logo || '����'}</span>}
+                  {p.logoImg ? <img src={p.logoImg} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-2xl">{p.logo || '🤝'}</span>}
                 </div>
                 <p className="text-xs font-bold text-gray-600 text-center leading-tight">{p.name}</p>
               </div>
@@ -107,50 +107,132 @@ export function Partners() {
   );
 }
 
-interface ShopItemData {
-  logo: string;
-  logoImg: string;
-  title: string;
-  desc: string;
-  subDesc: string;
-  link: string;
+function normalizeImages(item: ShopItem): string[] {
+  return Array.isArray(item.images) && item.images.length > 0
+    ? item.images
+    : item.logoImg
+      ? [item.logoImg]
+      : [];
 }
 
-type ShopTab = 'all' | 'featured' | 'budget' | 'recommended';
-
-const featuredShopBadges = [
-  { label: 'Top Pick', icon: <Sparkles size={14} /> },
-  { label: 'Fast Delivery', icon: <Truck size={14} /> },
-  { label: 'Best Deal', icon: <BadgePercent size={14} /> },
-];
-
-export function Shop() {
-  const [shopItems, setShopItems] = useState<ShopItemData[]>(() => getShopItems());
-  const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<ShopTab>('all');
+function ShopCard({ item, isFav, onFavToggle, onBuy }: { item: ShopItem; isFav: boolean; onFavToggle: () => void; onBuy: () => void }) {
+  const images = normalizeImages(item);
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const handler = () => setShopItems(getShopItems());
+    setIndex(0);
+  }, [item.id]);
+
+  return (
+    <article className="bg-white rounded-3xl p-4 shadow-lg border border-gray-100 animate-pop overflow-hidden">
+      <div className="flex items-start gap-3">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 shadow flex items-center justify-center overflow-hidden flex-shrink-0">
+          {images[index] ? <img src={images[index]} alt={item.title} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.logo || '🛒'}</span>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-bold text-gray-800 text-sm truncate">{item.title}</p>
+            {item.subDesc && <span className="shrink-0 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700">{item.subDesc}</span>}
+          </div>
+          <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-400">
+            <MapPin size={12} />
+            <span>{item.category || t('shop.category_general')}</span>
+          </div>
+        </div>
+        <button onClick={onFavToggle} className="shrink-0 rounded-full p-2 bg-gray-100 active:scale-95 transition" aria-label={isFav ? t('shop.unfavorite') : t('shop.favorite')}>
+          <Heart size={16} className={isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+        </button>
+      </div>
+
+      {images.length > 1 && (
+        <div className="mt-3">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {images.map((img, i) => (
+              <button key={i} onClick={() => setIndex(i)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 ${index === i ? 'border-candy-green' : 'border-transparent'}`}>
+                <img src={img} alt={`${item.title} ${i + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-2 mt-4 mb-4">
+        <div className="rounded-2xl bg-candy-green/10 px-3 py-2 text-center">
+          <Package size={14} className="mx-auto text-candy-green mb-1" />
+          <p className="text-[10px] font-bold text-gray-500 uppercase">{t('shop.top_sellers')}</p>
+          <p className="text-xs font-bold text-gray-700">{item.clicks}</p>
+        </div>
+        <div className="rounded-2xl bg-candy-blue/10 px-3 py-2 text-center">
+          <CreditCard size={14} className="mx-auto text-candy-blue mb-1" />
+          <p className="text-[10px] font-bold text-gray-500 uppercase">{t('shop.images')}</p>
+          <p className="text-xs font-bold text-gray-700">{images.length}</p>
+        </div>
+        <div className="rounded-2xl bg-candy-pink/10 px-3 py-2 text-center">
+          <TimerReset size={14} className="mx-auto text-candy-pink mb-1" />
+          <p className="text-[10px] font-bold text-gray-500 uppercase">{t('shop.clicks')}</p>
+          <p className="text-xs font-bold text-gray-700">{getShopClicks(item.id)}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onBuy}
+        className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-3 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
+      >
+        <ShoppingCart size={16} /> {t('shop.buy_full')}
+        <ArrowRight size={16} />
+      </button>
+    </article>
+  );
+}
+
+export function Shop() {
+  const [shopItems, setShopItems] = useState<ShopItem[]>(() => getShopItems());
+  const [query, setQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [favorites, setFavorites] = useState(() => getShopFavorites());
+
+  useEffect(() => {
+    const handler = () => {
+      setShopItems(getShopItems());
+      setFavorites(getShopFavorites());
+    };
     window.addEventListener('cloudSynced', handler);
     return () => window.removeEventListener('cloudSynced', handler);
   }, []);
 
+  const categoryOptions = useMemo(() => {
+    const cats = Array.from(new Set(shopItems.map(item => item.category || t('shop.category_general')).filter(Boolean)));
+    return ['all', ...cats];
+  }, [shopItems]);
+
+  const topSellers = useMemo(() => [...shopItems].sort((a, b) => (b.clicks ?? 0) - (a.clicks ?? 0)).slice(0, 3), [shopItems]);
+
   const filteredItems = shopItems.filter(item => {
     const q = query.trim().toLowerCase();
-    const matchesQuery = !q || [item.title, item.desc, item.subDesc].join(' ').toLowerCase().includes(q);
-    const matchesCategory = activeCategory === 'all'
-      || (activeCategory === 'featured' && !!item.subDesc)
-      || (activeCategory === 'budget' && /sale|discount|deal|affordable|save/i.test([item.title, item.desc, item.subDesc].join(' ')))
-      || (activeCategory === 'recommended');
+    const haystack = [item.title, item.desc, item.subDesc, item.category].join(' ').toLowerCase();
+    const matchesQuery = !q || haystack.includes(q);
+    const matchesCategory = activeCategory === 'all' || (item.category || t('shop.category_general')) === activeCategory;
     return matchesQuery && matchesCategory;
   });
 
-  const tabs: { key: ShopTab; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'featured', label: 'Featured' },
-    { key: 'budget', label: 'Budget finds' },
-    { key: 'recommended', label: 'Recommended' },
-  ];
+  const toggleFav = (id: string) => {
+    setFavorites(toggleShopFavorite(id));
+  };
+
+  const handleBuy = (item: ShopItem) => {
+    const nextClicks = (item.clicks ?? 0) + 1;
+    const updated = shopItems.map(cur => cur.id === item.id ? { ...cur, clicks: nextClicks } : cur);
+    setShopItems(updated);
+    persistShopItems(updated);
+    saveShopItemsToCloud(updated);
+    incrementShopClicks(item.id);
+    window.open(item.link, '_blank');
+  };
+
+  const tabs = ['all', ...categoryOptions.filter(cat => cat !== 'all')];
+  const favoriteItems = filteredItems.filter(item => favorites.includes(item.id));
+  const displayItems = activeCategory === t('shop.favorites') ? favoriteItems : filteredItems;
 
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-b from-gray-50 to-white">
@@ -166,14 +248,6 @@ export function Shop() {
               <p className="text-xs font-semibold">Browse like a real shop</p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {featuredShopBadges.map((badge) => (
-              <div key={badge.label} className="bg-white/15 backdrop-blur rounded-2xl px-2 py-2 text-white flex items-center justify-center gap-1 text-[11px] font-bold">
-                {badge.icon}
-                <span>{badge.label}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -183,78 +257,69 @@ export function Shop() {
         <div className="bg-white rounded-2xl p-3 shadow space-y-3">
           <div className="relative">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search products, brands, deals..." className="w-full bg-gray-100 rounded-full pl-12 pr-4 py-3 text-sm outline-none" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('shop.search')} className="w-full bg-gray-100 rounded-full pl-12 pr-4 py-3 text-sm outline-none" />
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             {tabs.map(tab => (
               <button
-                key={tab.key}
-                onClick={() => setActiveCategory(tab.key)}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === tab.key ? 'bg-candy-green text-white shadow' : 'bg-gray-100 text-gray-500'}`}
+                key={tab}
+                onClick={() => setActiveCategory(tab)}
+                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === tab ? 'bg-candy-green text-white shadow' : 'bg-gray-100 text-gray-500'}`}
               >
-                {tab.label}
+                {tab === 'all' ? t('shop.category_all') : tab}
               </button>
             ))}
+            <button
+              onClick={() => setActiveCategory(t('shop.favorites'))}
+              className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === t('shop.favorites') ? 'bg-candy-pink text-white shadow' : 'bg-gray-100 text-gray-500'}`}
+            >
+              {t('shop.favorites')}
+            </button>
           </div>
         </div>
+
+        {topSellers.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="font-black text-gray-700">🏆 {t('shop.top_sellers')}</p>
+            </div>
+            <div className="grid gap-2">
+              {topSellers.map(item => (
+                <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-2">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-white shadow flex-shrink-0">
+                    {normalizeImages(item)[0] ? <img src={normalizeImages(item)[0]} alt={item.title} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full">{item.logo || '🛒'}</span>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm truncate">{item.title}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{item.category || t('shop.category_general')}</p>
+                  </div>
+                  <span className="text-xs font-bold text-candy-green">{item.clicks}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {shopItems.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 shadow text-center">
             <ShoppingBasket size={40} className="text-gray-300 mx-auto mb-2" />
             <p className="text-gray-400 text-sm">{t('shop.empty')}</p>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : displayItems.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 shadow text-center">
             <Search size={40} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">No items match your search.</p>
+            <p className="text-gray-400 text-sm">{t('shop.no_match')}</p>
           </div>
         ) : (
           <div className="grid gap-3">
-            {filteredItems.map((item, i) => (
-              <article key={i} className="bg-white rounded-3xl p-4 shadow-lg border border-gray-100 animate-pop overflow-hidden">
-                <div className="flex items-start gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 shadow flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {item.logoImg ? <img src={item.logoImg} alt={item.title} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.logo || '🛒'}</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-bold text-gray-800 text-sm truncate">{item.title}</p>
-                      {item.subDesc && <span className="shrink-0 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700">{item.subDesc}</span>}
-                    </div>
-                    <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
-                    <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-400">
-                      <MapPin size={12} />
-                      <span>Affiliate product link</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-4 mb-4">
-                  <div className="rounded-2xl bg-candy-green/10 px-3 py-2 text-center">
-                    <Package size={14} className="mx-auto text-candy-green mb-1" />
-                    <p className="text-[10px] font-bold text-gray-500 uppercase">Stock</p>
-                    <p className="text-xs font-bold text-gray-700">Ready</p>
-                  </div>
-                  <div className="rounded-2xl bg-candy-blue/10 px-3 py-2 text-center">
-                    <CreditCard size={14} className="mx-auto text-candy-blue mb-1" />
-                    <p className="text-[10px] font-bold text-gray-500 uppercase">Payment</p>
-                    <p className="text-xs font-bold text-gray-700">Safe link</p>
-                  </div>
-                  <div className="rounded-2xl bg-candy-pink/10 px-3 py-2 text-center">
-                    <TimerReset size={14} className="mx-auto text-candy-pink mb-1" />
-                    <p className="text-[10px] font-bold text-gray-500 uppercase">Offer</p>
-                    <p className="text-xs font-bold text-gray-700">Limited</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => window.open(item.link, '_blank')}
-                  className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-3 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
-                >
-                  <ShoppingCart size={16} /> {t('shop.buy_full')}
-                  <ArrowRight size={16} />
-                </button>
-              </article>
+            {displayItems.map((item) => (
+              <ShopCard
+                key={item.id}
+                item={item}
+                isFav={favorites.includes(item.id)}
+                onFavToggle={() => toggleFav(item.id)}
+                onBuy={() => handleBuy(item)}
+              />
             ))}
           </div>
         )}
@@ -396,6 +461,8 @@ function OwnerDashboardContent() {
   const [sDesc, setSDesc] = useState('');
   const [sSubDesc, setSSubDesc] = useState('');
   const [sLink, setSLink] = useState('');
+  const [sCategory, setSCategory] = useState('General');
+  const [sImages, setSImages] = useState<string[]>([]);
 
   const [partners, setPartners] = useState<Partner[]>(() => getPartners());
   const [pName, setPName] = useState('');
@@ -414,7 +481,6 @@ function OwnerDashboardContent() {
     setTimeout(() => setSavedMsg(''), 2000);
   };
 
-  // Section 0: App Logo
   const uploadAppLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -437,7 +503,6 @@ function OwnerDashboardContent() {
     flash(t('owner.deleted'));
   };
 
-  // Section 1: YouTube
   const saveChannel = () => {
     lsRawSet('ytChannelName', channelName);
     lsRawSet('ytChannelId', channelId);
@@ -445,7 +510,6 @@ function OwnerDashboardContent() {
     flash(t('owner.saved'));
   };
 
-  // Section 2: Support Media
   const uploadMedia = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -468,7 +532,6 @@ function OwnerDashboardContent() {
     flash(t('owner.deleted'));
   };
 
-  // Section 3: Online Shop
   const uploadShopLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -477,23 +540,48 @@ function OwnerDashboardContent() {
     reader.readAsDataURL(file);
   };
 
+  const uploadShopImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const readers = files.map(file => new Promise<string>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    }));
+    Promise.all(readers).then(images => setSImages(prev => [...prev, ...images]));
+    e.target.value = '';
+  };
+
   const addShopItem = () => {
     if (!sTitle.trim() || !sLink.trim()) return;
-    const all = [...shopItems, { logo: sLogo || '🛒', logoImg: sLogoImg, title: sTitle, desc: sDesc, subDesc: sSubDesc, link: sLink }];
-    persistShopItems(all); setShopItems(all);
+    const item: ShopItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      logo: sLogo || '🛒',
+      logoImg: sLogoImg,
+      title: sTitle,
+      desc: sDesc,
+      subDesc: sSubDesc,
+      link: sLink,
+      category: sCategory || 'General',
+      images: sImages.length > 0 ? sImages : (sLogoImg ? [sLogoImg] : []),
+      clicks: 0,
+    };
+    const all = [...shopItems, item];
+    persistShopItems(all);
+    setShopItems(all);
     saveShopItemsToCloud(all);
-    setSLogo(''); setSLogoImg(''); setSTitle(''); setSDesc(''); setSSubDesc(''); setSLink('');
+    setSLogo(''); setSLogoImg(''); setSTitle(''); setSDesc(''); setSSubDesc(''); setSLink(''); setSCategory('General'); setSImages([]);
     flash(t('owner.added'));
   };
 
   const deleteShopItem = (idx: number) => {
     const all = shopItems.filter((_, i) => i !== idx);
-    persistShopItems(all); setShopItems(all);
+    persistShopItems(all);
+    setShopItems(all);
     saveShopItemsToCloud(all);
     flash(t('owner.deleted'));
   };
 
-  // Section 10: Partners
   const uploadPartnerLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -509,7 +597,8 @@ function OwnerDashboardContent() {
       return;
     }
     const all = [...partners, { name: pName, logo: pLogo || '🤝', logoImg: pLogoImg }];
-    persistPartners(all); setPartners(all);
+    persistPartners(all);
+    setPartners(all);
     savePartnersToCloud(all);
     setPName(''); setPLogo(''); setPLogoImg('');
     flash(t('owner.added'));
@@ -517,12 +606,12 @@ function OwnerDashboardContent() {
 
   const deletePartner = (idx: number) => {
     const all = partners.filter((_, i) => i !== idx);
-    persistPartners(all); setPartners(all);
+    persistPartners(all);
+    setPartners(all);
     savePartnersToCloud(all);
     flash(t('owner.deleted'));
   };
 
-  // Section 4: Manual Video
   const addManualVideo = () => {
     if (!mvTitle.trim() || !mvUrl.trim()) return;
     const all = [...manualVideos, { title: mvTitle, url: mvUrl, category: mvCategory, description: mvDesc, date: new Date().toISOString() }];
@@ -541,7 +630,6 @@ function OwnerDashboardContent() {
     flash(t('owner.deleted'));
   };
 
-  // Section 5: Quiz
   const saveQuiz = () => {
     if (!quizKey.trim() || !quizText.trim()) return;
     const lines = quizText.trim().split('\n').filter(l => l.trim());
@@ -556,7 +644,6 @@ function OwnerDashboardContent() {
     flash(t('owner.saved'));
   };
 
-  // Section 6: Sponsored
   const saveSponsored = () => {
     if (sponsoredTitle.trim() && sponsoredUrl.trim()) {
       lsSet('sponsoredLesson', { brand: sponsoredBrand, title: sponsoredTitle, url: sponsoredUrl });
@@ -568,7 +655,6 @@ function OwnerDashboardContent() {
     flash(t('owner.saved'));
   };
 
-  // Section 7: Inbox
   const deleteMsg = (idx: number) => {
     const msg = devMessages[idx];
     const all = devMessages.filter((_, i) => i !== idx);
@@ -623,14 +709,11 @@ function OwnerDashboardContent() {
           <div className="bg-white rounded-xl p-2 text-center shadow"><p className="text-lg font-bold text-gray-700">{stats.messages}</p><p className="text-[10px] text-gray-400">Msgs</p></div>
         </div>
 
-        {/* Section 0: App Logo */}
         <SectionCard color="border-candy-yellow" icon={<ImageIcon size={16} className="text-candy-yellow" />} title="App Logo">
           <p className="text-[10px] text-gray-400">Upload an image to show as the logo on the home page.</p>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-              {appLogo
-                ? <img src={appLogo} alt="Logo preview" className="w-full h-full object-contain" />
-                : <span className="text-[9px] text-gray-400 font-bold text-center px-1 leading-tight">No logo</span>}
+              {appLogo ? <img src={appLogo} alt="Logo preview" className="w-full h-full object-contain" /> : <span className="text-[9px] text-gray-400 font-bold text-center px-1 leading-tight">No logo</span>}
             </div>
             <div className="flex-1 space-y-2">
               <label className="w-full bg-candy-yellow rounded-xl py-2 flex items-center justify-center gap-2 font-bold text-white text-sm cursor-pointer">
@@ -646,7 +729,6 @@ function OwnerDashboardContent() {
           </div>
         </SectionCard>
 
-        {/* Section 1: YouTube */}
         <SectionCard color="border-red-400" icon={<Youtube size={16} className="text-red-500" />} title={t('owner.s1_title')}>
           <input value={channelName} onChange={e => setChannelName(e.target.value)} placeholder={t('owner.s1_channel_name')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <input value={channelId} onChange={e => setChannelId(e.target.value)} placeholder={t('owner.s1_channel_id')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
@@ -654,7 +736,6 @@ function OwnerDashboardContent() {
           <button onClick={saveChannel} className="w-full bg-red-500 rounded-xl py-2 font-bold text-white text-sm">{t('owner.s1_save')}</button>
         </SectionCard>
 
-        {/* Section 2: Support Media */}
         <SectionCard color="border-candy-pink" icon={<ImageIcon size={16} className="text-candy-pink" />} title={t('owner.s2_title')}>
           <label className="w-full bg-candy-pink rounded-xl py-2 flex items-center justify-center gap-2 font-bold text-white text-sm cursor-pointer">
             <Plus size={16} /> {t('owner.s2_upload')}
@@ -670,7 +751,6 @@ function OwnerDashboardContent() {
           </div>
         </SectionCard>
 
-        {/* Section 3: Online Shop */}
         <SectionCard color="border-candy-green" icon={<ShoppingBasket size={16} className="text-candy-green" />} title={t('owner.s3_title')}>
           <div className="rounded-2xl bg-gradient-to-r from-candy-green/10 to-candy-mint/10 border border-candy-green/20 p-3 flex items-start gap-2">
             <ShieldCheck size={16} className="text-candy-green mt-0.5" />
@@ -685,13 +765,24 @@ function OwnerDashboardContent() {
             <input type="file" accept="image/*" onChange={uploadShopLogo} className="hidden" />
           </label>
           {sLogoImg && <img src={sLogoImg} alt="Logo preview" className="w-12 h-12 rounded-xl object-cover" />}
+          <label className="w-full bg-gray-100 rounded-xl py-2 flex items-center justify-center gap-2 font-bold text-gray-500 text-sm cursor-pointer">
+            <ImageIcon size={16} /> Upload Multiple Photos
+            <input type="file" accept="image/*" multiple onChange={uploadShopImages} className="hidden" />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {sImages.map((img, i) => <img key={i} src={img} alt="preview" className="w-14 h-14 rounded-xl object-cover" />)}
+          </div>
           <input value={sTitle} onChange={e => setSTitle(e.target.value)} placeholder={t('owner.s3_title_input')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <input value={sDesc} onChange={e => setSDesc(e.target.value)} placeholder={t('owner.s3_desc')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <input value={sSubDesc} onChange={e => setSSubDesc(e.target.value)} placeholder={t('owner.s3_subdesc')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
+          <input value={sCategory} onChange={e => setSCategory(e.target.value)} list="shop-categories" placeholder={t('owner.s3_category')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
+          <datalist id="shop-categories">
+            {Array.from(new Set(shopItems.map(item => item.category || 'General'))).map(cat => <option key={cat} value={cat} />)}
+          </datalist>
           <input value={sLink} onChange={e => setSLink(e.target.value)} placeholder={t('owner.s3_link')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <button onClick={addShopItem} className="w-full bg-candy-green rounded-xl py-2 font-bold text-white text-sm">{t('owner.s3_add')}</button>
           {shopItems.map((item, i) => (
-            <div key={i} className="flex items-center justify-between bg-gray-100 rounded-xl px-2 py-1.5 text-xs gap-2">
+            <div key={item.id ?? i} className="flex items-center justify-between bg-gray-100 rounded-xl px-2 py-1.5 text-xs gap-2">
               <span className="flex items-center gap-1.5 flex-1 min-w-0">
                 {item.logoImg ? <img src={item.logoImg} alt="" className="w-6 h-6 rounded object-cover" /> : <span>{item.logo}</span>}
                 <span className="truncate">{item.title}</span>
@@ -701,7 +792,6 @@ function OwnerDashboardContent() {
           ))}
         </SectionCard>
 
-        {/* Section: Partners Manager */}
         <SectionCard color="border-[#A78BFA]" icon={<Handshake size={16} className="text-[#A78BFA]" />} title={`🤝 ${t('owner.s10_title')}`}>
           <p className="text-[10px] text-gray-400">{t('owner.s10_current')}: {partners.length}/{MAX_PARTNERS}</p>
           <input value={pName} onChange={e => setPName(e.target.value)} placeholder={t('owner.s10_name')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
@@ -725,7 +815,6 @@ function OwnerDashboardContent() {
           </div>
         </SectionCard>
 
-        {/* Section 4: Manual Video */}
         <SectionCard color="border-candy-blue" icon={<Plus size={16} className="text-candy-blue" />} title={t('owner.s4_title')}>
           <input value={mvUrl} onChange={e => setMvUrl(e.target.value)} placeholder={t('owner.s4_link')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <input value={mvTitle} onChange={e => setMvTitle(e.target.value)} placeholder={t('owner.s4_title_input')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
@@ -742,7 +831,6 @@ function OwnerDashboardContent() {
           ))}
         </SectionCard>
 
-        {/* Section 5: Quiz */}
         <SectionCard color="border-candy-purple" icon={<Plus size={16} className="text-candy-purple" />} title={t('owner.s5_title')}>
           <p className="text-[10px] text-gray-400">{t('owner.s5_format')}</p>
           <textarea value={quizText} onChange={e => setQuizText(e.target.value)} placeholder="Question|Correct|Wrong1|Wrong2" rows={6} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-xs outline-none font-mono resize-none" />
@@ -750,7 +838,6 @@ function OwnerDashboardContent() {
           <button onClick={saveQuiz} className="w-full bg-candy-purple rounded-xl py-2 font-bold text-white text-sm">{t('owner.s5_save')}</button>
         </SectionCard>
 
-        {/* Section 6: Sponsored */}
         <SectionCard color="border-candy-yellow" icon={<Plus size={16} className="text-candy-yellow" />} title={t('owner.s6_title')}>
           <input value={sponsoredBrand} onChange={e => setSponsoredBrand(e.target.value)} placeholder={t('owner.s6_brand')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <input value={sponsoredTitle} onChange={e => setSponsoredTitle(e.target.value)} placeholder={t('owner.s6_title_input')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
@@ -758,7 +845,6 @@ function OwnerDashboardContent() {
           <button onClick={saveSponsored} className="w-full bg-candy-yellow rounded-xl py-2 font-bold text-white text-sm">{t('owner.s6_save')}</button>
         </SectionCard>
 
-        {/* Section 7: Inbox */}
         <SectionCard color="border-candy-mint" icon={<MessageSquare size={16} className="text-candy-mint" />} title={t('owner.s7_title')}>
           {devMessages.length > 0 && (
             <button onClick={exportCSV} className="w-full bg-candy-mint rounded-xl py-2 flex items-center justify-center gap-2 font-bold text-white text-sm mb-2">
@@ -783,7 +869,6 @@ function OwnerDashboardContent() {
           </div>
         </SectionCard>
 
-        {/* Section 8: Log History */}
         <SectionCard color="border-gray-400" icon={<Plus size={16} className="text-gray-400" />} title={t('owner.s8_title')}>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {logs.length === 0 && <p className="text-xs text-gray-400 text-center">{t('owner.s8_empty')}</p>}
