@@ -12,7 +12,7 @@ export interface ManualVideoRow {
 let syncing = false;
 
 // Debouncing for cloud save operations
-const debounceTimers = new Map<string, NodeJS.Timeout>();
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function debounce(key: string, fn: () => Promise<void>, delay: number = 1000): void {
   if (debounceTimers.has(key)) {
@@ -143,7 +143,7 @@ export async function saveAppConfigToCloud(updates: {
       if (result.error) throw result.error;
       return result;
     });
-    if (error) console.warn('[sync] saveAppConfig error:', error.message);
+    if (error) console.warn('[sync] saveAppConfig error:', (error as Error).message);
   } catch (err) {
     console.warn('[sync] saveAppConfig failed:', err);
   }
@@ -236,7 +236,7 @@ export async function saveDevMessageToCloud(msg: { name: string; message: string
       if (result.error) throw result.error;
       return result;
     });
-    if (error) console.warn('[sync] dev_message insert error:', error.message);
+    if (error) console.warn('[sync] dev_message insert error:', (error as Error).message);
   } catch (err) {
     console.warn('[sync] saveDevMessage failed:', err);
   }
@@ -249,7 +249,7 @@ export async function deleteDevMessageFromCloud(date: string): Promise<void> {
       if (result.error) throw result.error;
       return result;
     });
-    if (error) console.warn('[sync] dev_message delete error:', error.message);
+    if (error) console.warn('[sync] dev_message delete error:', (error as Error).message);
   } catch (err) {
     console.warn('[sync] deleteDevMessage failed:', err);
   }
@@ -268,7 +268,7 @@ export async function clearSponsoredFromCloud(): Promise<void> {
       if (result.error) throw result.error;
       return result;
     });
-    if (error) console.warn('[sync] clearSponsored error:', error.message);
+    if (error) console.warn('[sync] clearSponsored error:', (error as Error).message);
   } catch (err) {
     console.warn('[sync] clearSponsored failed:', err);
   }
