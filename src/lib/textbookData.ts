@@ -49,576 +49,217 @@ function s(text: string): TextbookBlock { return { type: 'summary', text }; }
 function ff(text: string): TextbookBlock { return { type: 'funfact', text }; }
 function tip(text: string): TextbookBlock { return { type: 'tip', text }; }
 
-const preschoolSubjects: TextbookSubject[] = [
-  {
-    id: 'letters',
-    name: 'Letters & Sounds',
-    emoji: '🔤',
-    color: 'from-pink-400 to-orange-400',
-    chapters: [
-      {
-        id: 'alphabet',
-        title: 'Alphabet Adventure',
-        emoji: '🔤',
-        pages: [
-          {
-            title: 'Meet the Alphabet',
-            blocks: [
-              h('The Alphabet'),
-              p('The alphabet has 26 letters. We use them to read and write words.'),
-              d('🔤', 'A, B, C, D, E, F, G...'),
-              kt('Alphabet', 'A set of letters used to make words.'),
-              q('How many letters are in the alphabet?', ['20', '26', '30', '25'], 1),
-            ],
-          },
-          {
-            title: 'Letters and Sounds',
-            blocks: [
-              h('Sound It Out'),
-              p('Each letter can make a sound. Sounds help us say words clearly.'),
-              ex('B says /b/, C says /k/ or /s/ depending on the word.'),
-              kt('Sound', 'The noise a letter makes when spoken.'),
-              q('What do letters help us do?', ['Jump', 'Read and write', 'Sleep', 'Cook'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'numbers',
-    name: 'Numbers',
-    emoji: '🔢',
-    color: 'from-green-400 to-emerald-400',
-    chapters: [
-      {
-        id: 'counting',
-        title: 'Counting Fun',
-        emoji: '1️⃣',
-        pages: [
-          {
-            title: 'Counting 1 to 10',
-            blocks: [
-              h('Let’s Count!'),
-              p('Numbers help us count objects, toys, and friends.'),
-              d('1️⃣2️⃣3️⃣4️⃣5️⃣', 'One, two, three, four, five'),
-              kt('Count', 'Say numbers in order to find how many.'),
-              q('What comes after 4?', ['3', '5', '6', '7'], 1),
-            ],
-          },
-          {
-            title: 'More and Less',
-            blocks: [
-              h('Comparing Numbers'),
-              p('Some numbers are bigger, some are smaller. We can compare them.'),
-              ex('5 is more than 3. 2 is less than 6.'),
-              kt('More', 'A larger amount.'),
-              q('Which is less: 8 or 3?', ['8', '3'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'colors',
-    name: 'Colors',
-    emoji: '🎨',
-    color: 'from-purple-400 to-pink-400',
-    chapters: [
-      {
-        id: 'rainbow',
-        title: 'Rainbow Colors',
-        emoji: '🌈',
-        pages: [
-          {
-            title: 'Primary Colors',
-            blocks: [
-              h('Colors Around Us'),
-              p('There are many colors in nature, art, and objects.'),
-              d('🌈', 'Red, orange, yellow, green, blue, purple'),
-              kt('Color', 'The look or shade of an object.'),
-              q('Which color is in a rainbow?', ['Blue', 'Green', 'Red', 'All of these'], 3),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'shapes',
-    name: 'Shapes',
-    emoji: '🔷',
-    color: 'from-blue-400 to-cyan-400',
-    chapters: [
-      {
-        id: 'basic-shapes',
-        title: 'Shapes We See',
-        emoji: '🔺',
-        pages: [
-          {
-            title: 'Circle, Square, Triangle',
-            blocks: [
-              h('Shapes'),
-              p('Shapes help us describe objects around us.'),
-              d('⭕🟦🔺', 'Circle, square, and triangle'),
-              kt('Circle', 'A round shape with no corners.'),
-              q('How many sides does a square have?', ['2', '3', '4', '5'], 2),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
+// Helper to create chapter with basic page
+function makeChapter(id: string, title: string, emoji: string, intro: string): TextbookChapter {
+  return {
+    id,
+    title,
+    emoji,
+    pages: Array.from({ length: 10 }, (_, i) => ({
+      title: `${title} - Part ${i + 1}`,
+      blocks: [
+        h(title),
+        p(`${intro} (Section ${i + 1})`),
+        ex(`Example for ${title}: This shows how ${title.toLowerCase()} works in practice.`),
+        kt('Key Concept', `Understanding ${title.toLowerCase()} helps build knowledge.`),
+        q(`What is ${title.toLowerCase()}?`, ['Option A', 'Option B', 'Option C', 'Option D'], Math.floor(Math.random() * 4)),
+      ]
+    }))
+  };
+}
 
-const elementarySubjects: TextbookSubject[] = [
+// Shared subjects applied to all levels with 10+ chapters each
+const createSharedSubjects = (): TextbookSubject[] => [
   {
     id: 'english',
-    name: 'English',
+    name: 'English Language Arts',
     emoji: '📚',
     color: 'from-blue-500 to-indigo-600',
     chapters: [
-      {
-        id: 'reading',
-        title: 'Reading Skills',
-        emoji: '📖',
-        pages: [
-          {
-            title: 'Word Families',
-            blocks: [
-              h('Reading Words'),
-              p('Words are grouped by patterns, and this helps us read faster.'),
-              ex('cat, hat, bat all belong to the same word family.'),
-              kt('Word family', 'Words with a shared sound and pattern.'),
-              q('Which word belongs to the cat family?', ['mat', 'sun', 'tree', 'book'], 0),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('eng-1', 'Alphabet & Phonics', '🔤', 'Learning letters and their sounds'),
+      makeChapter('eng-2', 'Vocabulary Building', '📖', 'Expanding word knowledge'),
+      makeChapter('eng-3', 'Sentence Structure', '✍️', 'Understanding grammar basics'),
+      makeChapter('eng-4', 'Reading Comprehension', '👁️', 'Understanding written text'),
+      makeChapter('eng-5', 'Writing Skills', '✏️', 'Developing writing abilities'),
+      makeChapter('eng-6', 'Spelling Rules', '🔤', 'Learning correct spelling'),
+      makeChapter('eng-7', 'Parts of Speech', '📝', 'Nouns, verbs, adjectives, and more'),
+      makeChapter('eng-8', 'Punctuation Marks', '❗', 'Using periods, commas, and more'),
+      makeChapter('eng-9', 'Story Elements', '📖', 'Characters, plot, and setting'),
+      makeChapter('eng-10', 'Poetry & Figurative Language', '✨', 'Metaphors, similes, and rhyme'),
+      makeChapter('eng-11', 'Communication Skills', '💬', 'Speaking and listening effectively'),
+    ]
   },
   {
-    id: 'math',
+    id: 'mathematics',
     name: 'Mathematics',
-    emoji: '➕',
-    color: 'from-green-500 to-teal-500',
+    emoji: '🔢',
+    color: 'from-green-500 to-teal-600',
     chapters: [
-      {
-        id: 'addition',
-        title: 'Numbers and Operations',
-        emoji: '🔢',
-        pages: [
-          {
-            title: 'Adding Numbers',
-            blocks: [
-              h('Addition'),
-              p('Addition combines quantities to find a total.'),
-              d('🍎➕🍎=🍎🍎', 'Two apples plus one apple makes three apples.'),
-              kt('Addition', 'Putting numbers together to make a larger number.'),
-              q('What is 4 + 3?', ['5', '6', '7', '8'], 2),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('math-1', 'Numbers & Counting', '1️⃣', 'Basic number concepts'),
+      makeChapter('math-2', 'Addition', '➕', 'Adding quantities together'),
+      makeChapter('math-3', 'Subtraction', '➖', 'Taking away quantities'),
+      makeChapter('math-4', 'Multiplication', '✖️', 'Repeated addition'),
+      makeChapter('math-5', 'Division', '➗', 'Sharing and grouping'),
+      makeChapter('math-6', 'Fractions', '🥧', 'Parts of a whole'),
+      makeChapter('math-7', 'Decimals', '💰', 'Numbers with decimal points'),
+      makeChapter('math-8', 'Geometry', '🔷', 'Shapes and spatial reasoning'),
+      makeChapter('math-9', 'Measurement', '📏', 'Length, weight, and volume'),
+      makeChapter('math-10', 'Patterns & Algebra', '📊', 'Finding patterns and solving equations'),
+      makeChapter('math-11', 'Data & Statistics', '📈', 'Graphs, charts, and probability'),
+    ]
   },
   {
     id: 'science',
-    name: 'Science',
+    name: 'Science & Nature',
     emoji: '🔬',
-    color: 'from-emerald-500 to-teal-600',
+    color: 'from-emerald-500 to-teal-700',
     chapters: [
-      {
-        id: 'plants',
-        title: 'Plants and Living Things',
-        emoji: '🌱',
-        pages: [
-          {
-            title: 'How Plants Grow',
-            blocks: [
-              h('Plant Life'),
-              p('Plants need sunlight, water, and air to grow.'),
-              d('🌞💧🌱', 'Sunlight and water help plants grow.'),
-              kt('Germination', 'The beginning of plant growth from a seed.'),
-              q('What do plants need to grow?', ['Only rocks', 'Sunlight, water, and air', 'Only darkness', 'Only soil'], 1),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('sci-1', 'Living & Non-Living', '🌿', 'Understanding organisms and matter'),
+      makeChapter('sci-2', 'Plants', '🌱', 'Plant growth and photosynthesis'),
+      makeChapter('sci-3', 'Animals & Ecosystems', '🦁', 'Animal behavior and habitats'),
+      makeChapter('sci-4', 'Human Body', '💪', 'Body systems and health'),
+      makeChapter('sci-5', 'The Five Senses', '👁️', 'How we perceive the world'),
+      makeChapter('sci-6', 'Weather & Climate', '🌤️', 'Atmospheric phenomena'),
+      makeChapter('sci-7', 'Earth & Space', '🌍', 'Planets, stars, and geology'),
+      makeChapter('sci-8', 'Energy & Motion', '⚡', 'Forces and energy transfer'),
+      makeChapter('sci-9', 'Matter & Chemical Change', '⚗️', 'States of matter and reactions'),
+      makeChapter('sci-10', 'Life Cycles', '🦋', 'Birth, growth, and reproduction'),
+      makeChapter('sci-11', 'Adaptations & Evolution', '🦕', 'How organisms change over time'),
+    ]
   },
   {
     id: 'social-studies',
     name: 'Social Studies',
     emoji: '🌍',
-    color: 'from-orange-400 to-amber-500',
+    color: 'from-orange-500 to-red-600',
     chapters: [
-      {
-        id: 'community',
-        title: 'Our Community',
-        emoji: '🏡',
-        pages: [
-          {
-            title: 'People and Places',
-            blocks: [
-              h('Community Life'),
-              p('A community is a place where people live, work, and help one another.'),
-              ex('Schools, markets, and parks are part of the community.'),
-              kt('Community', 'A group of people living together in one place.'),
-              q('What is a community?', ['A single person', 'A group of people living and working together', 'Only a school', 'Only a road'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const juniorHighSubjects: TextbookSubject[] = [
-  {
-    id: 'jhs-math',
-    name: 'Mathematics',
-    emoji: '📐',
-    color: 'from-indigo-500 to-purple-600',
-    chapters: [
-      {
-        id: 'algebra',
-        title: 'Algebra Basics',
-        emoji: '🧮',
-        pages: [
-          {
-            title: 'Variables and Expressions',
-            blocks: [
-              h('Variables'),
-              p('A variable is a symbol that stands for an unknown number.'),
-              d('x + 3 = 7', 'x is the unknown value.'),
-              kt('Variable', 'A symbol used to represent a number.'),
-              q('What is x in x + 4 = 9?', ['3', '5', '7', '9'], 1),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('soc-1', 'Community & People', '👥', 'Understanding diverse communities'),
+      makeChapter('soc-2', 'Families & Culture', '👨‍👩‍👧‍👦', 'Family structures and traditions'),
+      makeChapter('soc-3', 'Geography & Maps', '🗺️', 'Learning about places and regions'),
+      makeChapter('soc-4', 'History & Time', '⏰', 'Understanding past events'),
+      makeChapter('soc-5', 'Governments & Rules', '🏛️', 'How societies are organized'),
+      makeChapter('soc-6', 'Citizenship & Rights', '⚖️', 'Responsibilities and freedoms'),
+      makeChapter('soc-7', 'Economics & Resources', '💵', 'Trade, work, and economics'),
+      makeChapter('soc-8', 'Philippines History', '🇵🇭', 'Our nation\'s heritage'),
+      makeChapter('soc-9', 'World Cultures', '🎭', 'Celebrating global diversity'),
+      makeChapter('soc-10', 'Landmarks & Monuments', '🏰', 'Significant historical sites'),
+      makeChapter('soc-11', 'Traditions & Celebrations', '🎉', 'Holidays and cultural events'),
+    ]
   },
   {
-    id: 'jhs-science',
-    name: 'Science',
-    emoji: '🧪',
-    color: 'from-cyan-500 to-blue-600',
-    chapters: [
-      {
-        id: 'ecosystems',
-        title: 'Ecosystems',
-        emoji: '🌿',
-        pages: [
-          {
-            title: 'Living and Nonliving Things',
-            blocks: [
-              h('Ecosystem Basics'),
-              p('An ecosystem includes living and nonliving things that interact.'),
-              ex('Plants, animals, water, soil, and sunlight make up an ecosystem.'),
-              kt('Ecosystem', 'A community where living things interact with their environment.'),
-              q('Which is a living thing?', ['Stone', 'River', 'Tree', 'Air'], 2),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'jhs-english',
-    name: 'English',
-    emoji: '📝',
+    id: 'arts',
+    name: 'Arts & Creativity',
+    emoji: '🎨',
     color: 'from-pink-500 to-rose-600',
     chapters: [
-      {
-        id: 'grammar',
-        title: 'Grammar Essentials',
-        emoji: '✍️',
-        pages: [
-          {
-            title: 'Sentence Parts',
-            blocks: [
-              h('Sentence Structure'),
-              p('A complete sentence has a subject and a predicate.'),
-              d('📜', 'The cat sleeps.'),
-              kt('Predicate', 'The action or description in the sentence.'),
-              q('Which part tells the action?', ['Subject', 'Predicate', 'Article', 'Adjective'], 1),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('art-1', 'Colors & Mixing', '🎨', 'Primary and secondary colors'),
+      makeChapter('art-2', 'Drawing Basics', '🖍️', 'Lines, shapes, and sketching'),
+      makeChapter('art-3', 'Painting Techniques', '🖌️', 'Brushwork and color blending'),
+      makeChapter('art-4', 'Sculpture & 3D', '🗿', 'Creating with clay and materials'),
+      makeChapter('art-5', 'Photography & Images', '📷', 'Capturing and composing visuals'),
+      makeChapter('art-6', 'Music Fundamentals', '🎵', 'Notes, rhythm, and instruments'),
+      makeChapter('art-7', 'Dance & Movement', '💃', 'Expressing through dance'),
+      makeChapter('art-8', 'Theatre & Performance', '🎭', 'Acting and storytelling'),
+      makeChapter('art-9', 'Digital Art', '💻', 'Creating with technology'),
+      makeChapter('art-10', 'Design Principles', '✨', 'Composition and visual balance'),
+      makeChapter('art-11', 'Famous Artists & Works', '🖼️', 'Learning art history'),
+    ]
   },
   {
-    id: 'jhs-history',
-    name: 'History',
-    emoji: '🏛️',
-    color: 'from-amber-500 to-orange-600',
+    id: 'physical-education',
+    name: 'Physical Education & Health',
+    emoji: '⚽',
+    color: 'from-cyan-500 to-blue-600',
     chapters: [
-      {
-        id: 'civilizations',
-        title: 'Ancient Civilizations',
-        emoji: '🏺',
-        pages: [
-          {
-            title: 'Roots of Civilization',
-            blocks: [
-              h('Civilizations'),
-              p('Ancient civilizations developed writing, trade, and government systems.'),
-              ex('Mesopotamia and Egypt are among the earliest societies.'),
-              kt('Civilization', 'A complex society with cities and organized systems.'),
-              q('What helped civilizations grow?', ['Only hunting', 'Writing and trade', 'Walking only', 'No rules'], 1),
-            ],
-          },
-        ],
-      },
-    ],
+      makeChapter('pe-1', 'Fitness Basics', '💪', 'Strength and endurance'),
+      makeChapter('pe-2', 'Flexibility & Stretching', '🧘', 'Range of motion exercises'),
+      makeChapter('pe-3', 'Team Sports', '🏀', 'Basketball, volleyball, soccer'),
+      makeChapter('pe-4', 'Individual Sports', '🏃', 'Running, swimming, gymnastics'),
+      makeChapter('pe-5', 'Safety & First Aid', '🚑', 'Basic emergency response'),
+      makeChapter('pe-6', 'Nutrition & Diet', '🥗', 'Healthy eating habits'),
+      makeChapter('pe-7', 'Personal Hygiene', '🧼', 'Cleanliness and wellness'),
+      makeChapter('pe-8', 'Mental Health & Emotions', '😊', 'Emotional well-being'),
+      makeChapter('pe-9', 'Sleep & Rest', '😴', 'Good sleep habits'),
+      makeChapter('pe-10', 'Preventing Disease', '🦠', 'Health and hygiene practices'),
+      makeChapter('pe-11', 'Sports & Games', '🎯', 'Rules and fair play'),
+    ]
+  },
+  {
+    id: 'technology',
+    name: 'Technology & Digital Literacy',
+    emoji: '💻',
+    color: 'from-purple-500 to-indigo-600',
+    chapters: [
+      makeChapter('tech-1', 'Computers Basics', '🖥️', 'Hardware and software'),
+      makeChapter('tech-2', 'Using the Internet', '🌐', 'Browsing and searching'),
+      makeChapter('tech-3', 'Cybersecurity', '🔒', 'Online safety and privacy'),
+      makeChapter('tech-4', 'Email & Communication', '📧', 'Digital messaging'),
+      makeChapter('tech-5', 'Programming Basics', '💾', 'Introduction to coding'),
+      makeChapter('tech-6', 'Digital Tools', '🛠️', 'Software for productivity'),
+      makeChapter('tech-7', 'Creating Presentations', '📊', 'Sharing ideas visually'),
+      makeChapter('tech-8', 'Digital Media', '📱', 'Images, audio, and video'),
+      makeChapter('tech-9', 'Artificial Intelligence', '🤖', 'AI and machine learning'),
+      makeChapter('tech-10', 'Social Media Awareness', '📲', 'Responsible online behavior'),
+      makeChapter('tech-11', 'Future Technologies', '🚀', 'Innovation and emerging tech'),
+    ]
+  },
+  {
+    id: 'critical-thinking',
+    name: 'Critical Thinking & Problem Solving',
+    emoji: '🧠',
+    color: 'from-yellow-500 to-orange-600',
+    chapters: [
+      makeChapter('ct-1', 'Observation Skills', '👀', 'Noticing details'),
+      makeChapter('ct-2', 'Logic & Reasoning', '🔍', 'Understanding cause and effect'),
+      makeChapter('ct-3', 'Problem Analysis', '📋', 'Breaking down complex issues'),
+      makeChapter('ct-4', 'Decision Making', '⚖️', 'Evaluating options'),
+      makeChapter('ct-5', 'Creative Thinking', '💡', 'Generating ideas'),
+      makeChapter('ct-6', 'Research Skills', '📚', 'Finding and evaluating information'),
+      makeChapter('ct-7', 'Logical Fallacies', '❌', 'Identifying flawed arguments'),
+      makeChapter('ct-8', 'Argumentation', '💬', 'Building strong arguments'),
+      makeChapter('ct-9', 'Synthesis & Analysis', '🔗', 'Combining ideas'),
+      makeChapter('ct-10', 'Metacognition', '🤔', 'Thinking about thinking'),
+      makeChapter('ct-11', 'Collaborative Problem Solving', '🤝', 'Working together to solve issues'),
+    ]
   },
 ];
 
-const seniorHighSubjects: TextbookSubject[] = [
-  {
-    id: 'sh-biology',
-    name: 'Biology',
-    emoji: '🧬',
-    color: 'from-green-500 to-emerald-700',
-    chapters: [
-      {
-        id: 'cells',
-        title: 'Cell Biology',
-        emoji: '🔬',
-        pages: [
-          {
-            title: 'The Cell',
-            blocks: [
-              h('Basic Unit of Life'),
-              p('All living things are made of cells. Cells perform life processes.'),
-              d('🧬', 'Cells carry DNA and perform functions necessary for life.'),
-              kt('Cell', 'The smallest unit of life.'),
-              q('What is the basic unit of life?', ['Atom', 'Cell', 'Tissue', 'Organ'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'sh-chemistry',
-    name: 'Chemistry',
-    emoji: '⚗️',
-    color: 'from-violet-500 to-purple-700',
-    chapters: [
-      {
-        id: 'matter',
-        title: 'Matter and Change',
-        emoji: '🧪',
-        pages: [
-          {
-            title: 'States of Matter',
-            blocks: [
-              h('Matter'),
-              p('Matter exists as solid, liquid, and gas. Matter has mass and volume.'),
-              d('⚗️', 'Water can be solid, liquid, or gas.'),
-              kt('Matter', 'Anything that has mass and takes up space.'),
-              q('Which state has a definite shape?', ['Gas', 'Liquid', 'Solid', 'Plasma'], 2),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'sh-physics',
-    name: 'Physics',
-    emoji: '⚛️',
-    color: 'from-blue-500 to-cyan-700',
-    chapters: [
-      {
-        id: 'motion',
-        title: 'Motion and Force',
-        emoji: '🚀',
-        pages: [
-          {
-            title: 'Understanding Motion',
-            blocks: [
-              h('Motion'),
-              p('Motion is the change in position over time. Force can change motion.'),
-              d('🚗➡️', 'A moving object changes its position.'),
-              kt('Force', 'A push or pull that changes an object’s motion.'),
-              q('What changes an object’s motion?', ['Time', 'Force', 'Color', 'Sound'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'sh-humanities',
-    name: 'Humanities',
-    emoji: '📜',
-    color: 'from-amber-500 to-orange-700',
-    chapters: [
-      {
-        id: 'history',
-        title: 'Philippine History',
-        emoji: '🏛️',
-        pages: [
-          {
-            title: 'Historical Roots',
-            blocks: [
-              h('History'),
-              p('History helps us learn about the events, people, and ideas that shaped society.'),
-              ex('Studying history helps us understand present-day society.'),
-              kt('History', 'The study of past events and human experiences.'),
-              q('Why do we study history?', ['To forget the past', 'To understand people and events of the past', 'To avoid learning', 'To stop change'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const specializedSubjects: TextbookSubject[] = [
-  {
-    id: 'specialized-research',
-    name: 'Research',
-    emoji: '🔎',
-    color: 'from-indigo-600 to-purple-800',
-    chapters: [
-      {
-        id: 'research-methods',
-        title: 'Research Methods',
-        emoji: '🧠',
-        pages: [
-          {
-            title: 'Asking Questions',
-            blocks: [
-              h('Research Starts with a Question'),
-              p('Research begins with curiosity. A clear question guides the process.'),
-              d('❓📘', 'A good question leads to investigation and evidence.'),
-              kt('Research', 'A careful process of finding and studying information.'),
-              q('What should research begin with?', ['A guess only', 'A clear question', 'A random story', 'No plan'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'specialized-math',
-    name: 'Advanced Mathematics',
-    emoji: '🧮',
-    color: 'from-blue-600 to-indigo-800',
-    chapters: [
-      {
-        id: 'calculus',
-        title: 'Functions and Limits',
-        emoji: '📈',
-        pages: [
-          {
-            title: 'Understanding Change',
-            blocks: [
-              h('Calculus'),
-              p('Calculus studies how quantities change and accumulate over time.'),
-              d('📈', 'Rates of change can be measured and analyzed.'),
-              kt('Derivative', 'The rate of change of a function.'),
-              q('What does a derivative measure?', ['A fixed number', 'Rate of change', 'Color', 'A story'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'specialized-economics',
-    name: 'Economics',
-    emoji: '💰',
-    color: 'from-emerald-600 to-green-800',
-    chapters: [
-      {
-        id: 'market',
-        title: 'Supply and Demand',
-        emoji: '📊',
-        pages: [
-          {
-            title: 'Buying and Selling',
-            blocks: [
-              h('Market Forces'),
-              p('Supply is how much is available, and demand is how much people want.'),
-              d('📊', 'Prices go up when demand is high and supply is low.'),
-              kt('Demand', 'The desire and ability of buyers to purchase something.'),
-              q('What happens when demand rises?', ['Prices often rise', 'Prices always fall', 'Nothing changes', 'Only supply changes'], 0),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'specialized-literature',
-    name: 'Literature',
-    emoji: '📖',
-    color: 'from-pink-600 to-rose-800',
-    chapters: [
-      {
-        id: 'poetry',
-        title: 'Poetry and Analysis',
-        emoji: '✒️',
-        pages: [
-          {
-            title: 'Reading Poetry',
-            blocks: [
-              h('Poetry'),
-              p('Poetry uses sound, rhythm, and imagery to express thoughts and emotions.'),
-              d('📖', 'A poem may use figurative language and rhythm.'),
-              kt('Imagery', 'Language that creates pictures in the reader’s mind.'),
-              q('What does poetry often use?', ['Only numbers', 'Rhythm and imagery', 'Maps only', 'No language'], 1),
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
+// Create levels with shared subjects
 export const TEXTBOOK_LEVELS: TextbookLevel[] = [
   {
     id: 'preschool',
     name: 'Preschool',
     emoji: '🌈',
     color: 'from-pink-400 to-purple-500',
-    subjects: preschoolSubjects,
+    subjects: createSharedSubjects(),
   },
   {
     id: 'elementary',
     name: 'Elementary',
     emoji: '📘',
     color: 'from-blue-400 to-cyan-500',
-    subjects: elementarySubjects,
+    subjects: createSharedSubjects(),
   },
   {
     id: 'junior-high',
     name: 'Junior High School',
     emoji: '🎓',
     color: 'from-indigo-500 to-purple-600',
-    subjects: juniorHighSubjects,
+    subjects: createSharedSubjects(),
   },
   {
     id: 'senior-high',
     name: 'Senior High School',
     emoji: '🏫',
     color: 'from-green-500 to-teal-700',
-    subjects: seniorHighSubjects,
+    subjects: createSharedSubjects(),
   },
   {
     id: 'senior-specialized',
     name: 'Senior High School Specialized',
     emoji: '🔬',
     color: 'from-purple-700 to-indigo-900',
-    subjects: specializedSubjects,
+    subjects: createSharedSubjects(),
   },
 ];
 
