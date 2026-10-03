@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Heart, Copy, Check, ExternalLink, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Gift, Handshake, ShoppingBasket, X, Star, ShieldCheck, Truck, BadgePercent, Search, Filter, ChevronRight, Sparkles, Tag, TimerReset, ArrowRight, Clock3, MapPin, CreditCard, ShoppingCart, Package, Grid3X3 } from 'lucide-react';
-import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, setAppLogo as setAppLogo, clearAppLogo } from '@/lib/localStorage';
-import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/cloudSync';
+import { Heart, Copy, Check, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Handshake, ShoppingBasket, X, ShieldCheck, Truck, BadgePercent, Search, Sparkles, TimerReset, ArrowRight, MapPin, CreditCard, ShoppingCart, Package } from 'lucide-react';
+import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, setAppLogo, clearAppLogo } from '@/lib/storage';
+import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/sync';
 import { t } from '@/lib/i18n';
 import type { VideoCategory, ShopItem, Partner } from '@/types';
 
@@ -95,7 +95,7 @@ export function Partners() {
             {partners.map((p, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 shadow flex flex-col items-center gap-2 animate-pop" style={{ animationDelay: `${i * 0.05}s` }}>
                 <div className="w-14 h-14 rounded-full bg-gray-50 shadow flex items-center justify-center overflow-hidden">
-                  {p.logoImg ? <img src={p.logoImg} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-2xl">{p.logo || '🤝'}</span>}
+                  {p.logoImg ? <img src={p.logoImg} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-2xl">{p.logo || '����'}</span>}
                 </div>
                 <p className="text-xs font-bold text-gray-600 text-center leading-tight">{p.name}</p>
               </div>
@@ -116,6 +116,8 @@ interface ShopItemData {
   link: string;
 }
 
+type ShopTab = 'all' | 'featured' | 'budget' | 'recommended';
+
 const featuredShopBadges = [
   { label: 'Top Pick', icon: <Sparkles size={14} /> },
   { label: 'Fast Delivery', icon: <Truck size={14} /> },
@@ -125,7 +127,7 @@ const featuredShopBadges = [
 export function Shop() {
   const [shopItems, setShopItems] = useState<ShopItemData[]>(() => getShopItems());
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'all' | 'featured' | 'budget' | 'recommended'>('all');
+  const [activeCategory, setActiveCategory] = useState<ShopTab>('all');
 
   useEffect(() => {
     const handler = () => setShopItems(getShopItems());
@@ -143,10 +145,16 @@ export function Shop() {
     return matchesQuery && matchesCategory;
   });
 
+  const tabs: { key: ShopTab; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'featured', label: 'Featured' },
+    { key: 'budget', label: 'Budget finds' },
+    { key: 'recommended', label: 'Recommended' },
+  ];
+
   return (
     <div className="min-h-screen pb-28 bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-gradient-to-br from-candy-green to-candy-mint px-5 pt-10 pb-6 rounded-b-3xl shadow-lg relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_white_0,_transparent_45%)]" />
         <div className="relative">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -178,15 +186,10 @@ export function Shop() {
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search products, brands, deals..." className="w-full bg-gray-100 rounded-full pl-12 pr-4 py-3 text-sm outline-none" />
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'featured', label: 'Featured' },
-              { key: 'budget', label: 'Budget finds' },
-              { key: 'recommended', label: 'Recommended' },
-            ].map(tab => (
+            {tabs.map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setActiveCategory(tab.key as any)}
+                onClick={() => setActiveCategory(tab.key)}
                 className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === tab.key ? 'bg-candy-green text-white shadow' : 'bg-gray-100 text-gray-500'}`}
               >
                 {tab.label}
@@ -244,18 +247,13 @@ export function Shop() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button className="flex-1 rounded-full bg-gray-100 py-3 text-sm font-bold text-gray-600 flex items-center justify-center gap-2 active:scale-95 transition">
-                    <Grid3X3 size={16} /> Details
-                  </button>
-                  <button
-                    onClick={() => window.open(item.link, '_blank')}
-                    className="flex-[1.4] bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-3 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart size={16} /> {t('shop.buy_full')}
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
+                <button
+                  onClick={() => window.open(item.link, '_blank')}
+                  className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-3 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart size={16} /> {t('shop.buy_full')}
+                  <ArrowRight size={16} />
+                </button>
               </article>
             ))}
           </div>
@@ -747,7 +745,7 @@ function OwnerDashboardContent() {
         {/* Section 5: Quiz */}
         <SectionCard color="border-candy-purple" icon={<Plus size={16} className="text-candy-purple" />} title={t('owner.s5_title')}>
           <p className="text-[10px] text-gray-400">{t('owner.s5_format')}</p>
-          <textarea value={quizText} onChange={e => setQuizText(e.target.value)} placeholder="Question|Correct|Wrong1|Wrong2" rows={6} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-xs outline-none resize-none" />
+          <textarea value={quizText} onChange={e => setQuizText(e.target.value)} placeholder="Question|Correct|Wrong1|Wrong2" rows={6} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-xs outline-none font-mono resize-none" />
           <input value={quizKey} onChange={e => setQuizKey(e.target.value)} placeholder={t('owner.s5_keyword')} className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none" />
           <button onClick={saveQuiz} className="w-full bg-candy-purple rounded-xl py-2 font-bold text-white text-sm">{t('owner.s5_save')}</button>
         </SectionCard>
