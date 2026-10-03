@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Heart, Copy, Check, ExternalLink, Send, Trash2, MessageSquare, Crown, Plus, Download, Youtube, Image as ImageIcon, Gift, Handshake, ShoppingBasket, X } from 'lucide-react';
+import { Heart, Copy, Check, Send, Trash2, MessageSquare, Crown, Plus, Minus, Download, Youtube, Image as ImageIcon, Handshake, ShoppingBasket, ShoppingCart, Search, X } from 'lucide-react';
 import { lsGet, lsSet, lsRaw, lsRawSet, isOwner, addAdminLog, getAdminLogs, getShopItems, setShopItems as persistShopItems, getPartners, setPartners as persistPartners, MAX_PARTNERS, getAppLogo, setAppLogo, clearAppLogo } from '@/lib/storage';
 import { saveAppConfigToCloud, savePartnersToCloud, saveShopItemsToCloud, saveManualVideosToCloud, saveSupportMediaToCloud, saveDevMessageToCloud, deleteDevMessageFromCloud, clearSponsoredFromCloud } from '@/lib/sync';import { t } from '@/lib/i18n';
 import type { VideoCategory, ShopItem, Partner } from '@/types';
@@ -115,49 +115,214 @@ interface ShopItemData {
   link: string;
 }
 
+interface StoreProduct {
+  id: string;
+  name: string;
+  description: string;
+  category: 'Learning' | 'Classroom' | 'Digital';
+  emoji: string;
+  price: number;
+}
+
+interface CartLine {
+  productId: string;
+  quantity: number;
+}
+
+const STORE_PRODUCTS: StoreProduct[] = [
+  { id: 'alphabet-cards', name: 'Alphabet Flashcards', description: 'Colorful A–Z cards for early readers.', category: 'Learning', emoji: '🔤', price: 149 },
+  { id: 'number-workbook', name: 'Numbers Activity Workbook', description: 'Fun counting and number practice.', category: 'Learning', emoji: '🔢', price: 189 },
+  { id: 'color-shape-kit', name: 'Colors & Shapes Kit', description: 'Playful activities for little learners.', category: 'Classroom', emoji: '🌈', price: 229 },
+  { id: 'learning-bundle', name: 'Kinder Learning Bundle', description: 'A starter bundle for curious minds.', category: 'Learning', emoji: '🎒', price: 399 },
+  { id: 'printable-pack', name: 'Printable Activity Pack', description: 'Ready-to-print worksheets and games.', category: 'Digital', emoji: '📄', price: 99 },
+  { id: 'classroom-stickers', name: 'Reward Sticker Set', description: 'Celebrate every learning milestone.', category: 'Classroom', emoji: '⭐', price: 119 },
+];
+
+function readCart(): CartLine[] {
+  const saved = lsGet<unknown>('storeCart', []);
+  if (!Array.isArray(saved)) return [];
+  return saved.filter((line): line is CartLine =>
+    typeof line === 'object' &&
+    line !== null &&
+    'productId' in line &&
+    typeof line.productId === 'string' &&
+    STORE_PRODUCTS.some(product => product.id === line.productId) &&
+    'quantity' in line &&
+    Number.isInteger(line.quantity) &&
+    (line.quantity as number) > 0,
+  );
+}
+
 export function Shop() {
   const [shopItems, setShopItems] = useState<ShopItemData[]>(() => getShopItems());
+  const [cart, setCart] = useState<CartLine[]>(readCart);
+  const [category, setCategory] = useState('All');
+  const [search, setSearch] = useState('');
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
   useEffect(() => {
     const handler = () => setShopItems(getShopItems());
     window.addEventListener('cloudSynced', handler);
     return () => window.removeEventListener('cloudSynced', handler);
   }, []);
+  const updateCart = (next: CartLine[]) => {
+    setCart(next);
+    lsSet('storeCart', next);
+  };
+  const changeQuantity = (productId: string, amount: number) => {
+    const next = cart
+      .map(line => line.productId === productId ? { ...line, quantity: line.quantity + amount } : line)
+      .filter(line => line.quantity > 0);
+    updateCart(next);
+  };
+  const cartItems = cart.flatMap(line => {
+    const product = STORE_PRODUCTS.find(item => item.id === line.productId);
+    return product ? [{ ...product, quantity: line.quantity }] : [];
+  });
+  const cartCount = cartItems.reduce((sum, line) => sum + line.quantity, 0);
+  const subtotal = cartItems.reduce((sum, line) => sum + line.price * line.quantity, 0);
+  const categories = ['All', 'Learning', 'Classroom', 'Digital'];
+  const products = STORE_PRODUCTS.filter(product =>
+    (category === 'All' || product.category === category) &&
+    `${product.name} ${product.description}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const placeDemoOrder = () => {
+    updateCart([]);
+    setShowCheckout(false);
+    setOrderPlaced(true);
+  };
   return (
     <div className="min-h-screen pb-28">
       <div className="bg-gradient-to-br from-candy-green to-candy-mint px-5 pt-10 pb-6 rounded-b-3xl shadow-lg">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2"><ShoppingBasket size={24} /> 🛒 {t('shop.title')}</h1>
-        <p className="text-white/80 text-sm">{t('shop.subtitle')}</p>
+        <p className="text-white/90 text-sm">Learning essentials for little learners</p>
       </div>
       <div className="px-4 mt-4 space-y-3">
-        <PartnersRow />
-        {shopItems.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 shadow text-center">
-            <ShoppingBasket size={40} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">{t('shop.empty')}</p>
+        {orderPlaced && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+            <p className="font-bold text-green-700">🎉 Demo order placed!</p>
+            <p className="text-xs text-green-600 mt-1">Thanks for shopping with Ready PH. No payment was processed.</p>
+            <button onClick={() => setOrderPlaced(false)} className="mt-2 text-xs font-bold text-green-700 underline">Continue shopping</button>
           </div>
-        ) : (
-          shopItems.map((item, i) => (
-            <div key={i} className="bg-white rounded-2xl p-3 shadow animate-pop">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-50 shadow flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {item.logoImg ? <img src={item.logoImg} alt={item.title} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.logo || '🛒'}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-700 text-sm truncate">{item.title}</p>
-                  <p className="text-gray-500 text-xs" style={{ fontSize: 12 }}>{item.desc}</p>
-                  {item.subDesc && <span className="inline-block bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5 mt-1 text-[11px] font-bold">{item.subDesc}</span>}
-                </div>
-              </div>
-              <button
-                onClick={() => window.open(item.link, '_blank')}
-                className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-2.5 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
-              >
-                {t('shop.buy_full')}
-              </button>
+        )}
+        <div className="bg-white rounded-2xl p-4 shadow space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-black text-gray-700">Ready PH Store</h2>
+              <p className="text-xs text-gray-400">A simple demo catalog • Prices in PHP</p>
             </div>
-          ))
+            <button onClick={() => setShowCheckout(true)} disabled={cartCount === 0} className="relative flex items-center gap-2 rounded-full bg-primary-500 px-3 py-2 text-white text-xs font-bold disabled:opacity-40">
+              <ShoppingCart size={16} /> Cart
+              {cartCount > 0 && <span className="min-w-5 rounded-full bg-white px-1.5 py-0.5 text-[10px] text-primary-600">{cartCount}</span>}
+            </button>
+          </div>
+          <label className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+            <Search size={16} className="text-gray-400" />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search products" className="w-full bg-transparent text-sm outline-none" />
+          </label>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {categories.map(item => (
+              <button key={item} onClick={() => setCategory(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${category === item ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{item}</button>
+            ))}
+          </div>
+          {products.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400">No products match your search.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {products.map(product => {
+                const quantity = cart.find(line => line.productId === product.id)?.quantity ?? 0;
+                return (
+                  <article key={product.id} className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="mb-2 flex h-20 items-center justify-center rounded-xl bg-white text-4xl">{product.emoji}</div>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-primary-600">{product.category}</span>
+                    <h3 className="mt-1 text-sm font-black leading-tight text-gray-700">{product.name}</h3>
+                    <p className="mt-1 min-h-8 text-[10px] leading-snug text-gray-500">{product.description}</p>
+                    <div className="mt-auto flex items-center justify-between gap-1 pt-3">
+                      <span className="text-sm font-black text-gray-700">₱{product.price}</span>
+                      {quantity === 0 ? (
+                        <button onClick={() => updateCart([...cart, { productId: product.id, quantity: 1 }])} className="rounded-full bg-gradient-to-r from-candy-green to-candy-mint px-2.5 py-1.5 text-[10px] font-bold text-white">Add to cart</button>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button aria-label={`Remove one ${product.name}`} onClick={() => changeQuantity(product.id, -1)} className="rounded-full bg-white p-1 text-gray-600 shadow"><Minus size={12} /></button>
+                          <span className="min-w-4 text-center text-xs font-bold">{quantity}</span>
+                          <button aria-label={`Add one ${product.name}`} onClick={() => changeQuantity(product.id, 1)} className="rounded-full bg-white p-1 text-gray-600 shadow"><Plus size={12} /></button>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl bg-blue-50 px-3 py-2 text-[11px] text-blue-700">
+          This demo storefront does not process real payments or fulfill orders.
+        </div>
+        <PartnersRow />
+        {shopItems.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="px-1 font-black text-gray-600">More from our partners</h2>
+            {shopItems.map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl p-3 shadow animate-pop">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-14 h-14 rounded-xl bg-gray-50 shadow flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {item.logoImg ? <img src={item.logoImg} alt={item.title} className="w-full h-full object-cover" /> : <span className="text-2xl">{item.logo || '🛒'}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-700 text-sm truncate">{item.title}</p>
+                    <p className="text-gray-500 text-xs">{item.desc}</p>
+                    {item.subDesc && <span className="inline-block bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5 mt-1 text-[11px] font-bold">{item.subDesc}</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => window.open(item.link, '_blank', 'noopener,noreferrer')}
+                  className="w-full bg-gradient-to-r from-candy-green to-candy-mint rounded-full py-2.5 font-bold text-white shadow active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  {t('shop.buy_full')}
+                </button>
+              </div>
+            ))}
+          </section>
+        )}
+        {shopItems.length === 0 && (
+          <div className="bg-white rounded-2xl p-8 shadow text-center">
+            <ShoppingBasket size={24} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-400 text-xs">Partner offers will appear here.</p>
+          </div>
         )}
       </div>
+      {showCheckout && (
+        <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-gray-800">Order summary</h2>
+                <p className="text-xs text-gray-400">{cartCount} {cartCount === 1 ? 'item' : 'items'} in your cart</p>
+              </div>
+              <button aria-label="Close order summary" onClick={() => setShowCheckout(false)} className="rounded-full bg-gray-100 p-2 text-gray-500"><X size={18} /></button>
+            </div>
+            <div className="max-h-64 space-y-3 overflow-y-auto">
+              {cartItems.map(item => (
+                <div key={item.id} className="flex items-center gap-3">
+                  <span className="text-2xl">{item.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-700">{item.name}</p>
+                    <p className="text-xs text-gray-400">₱{item.price} × {item.quantity}</p>
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">₱{item.price * item.quantity}</span>
+                  <button aria-label={`Remove ${item.name} from cart`} onClick={() => updateCart(cart.filter(line => line.productId !== item.id))} className="p-1 text-gray-400"><Trash2 size={16} /></button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span><span>₱{subtotal}</span></div>
+              <div className="mt-2 flex justify-between text-lg font-black text-gray-800"><span>Total</span><span>₱{subtotal}</span></div>
+              <p className="mt-2 text-[10px] text-gray-400">Demo checkout only. No payment or order fulfillment takes place.</p>
+              <button onClick={placeDemoOrder} disabled={cartItems.length === 0} className="mt-4 w-full rounded-full bg-gradient-to-r from-candy-green to-candy-mint py-3 text-sm font-black text-white disabled:opacity-40">Place demo order</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
