@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import './PetCompanion.css';
 
 type PetLanguage = 'en' | 'tl';
-type PetAction = 'idle' | 'walk' | 'run' | 'play' | 'sleep' | 'roll' | 'jump' | 'talking';
+type PetAction = 'idle' | 'walk' | 'run' | 'play' | 'eat' | 'sleep' | 'roll' | 'jump' | 'talking';
 type PetPosition = { x: number; y: number };
 
 const NAME_KEY = 'readyph-pet-name';
@@ -35,7 +35,8 @@ const CLIP_MATCH: Record<PetAction, RegExp> = {
   idle: /idle|stand|rest|wait/i,
   walk: /walk|walking/i,
   run: /run|running/i,
-  play: /play|fetch|happy|excited/i,
+  play: /play|fetch|happy|excited|pet/i,
+  eat: /eat|eating|chew|drink|feed/i,
   sleep: /sleep|lie|lay|nap/i,
   roll: /roll|rolling/i,
   jump: /jump|hop/i,
@@ -80,8 +81,9 @@ export function PetCompanion() {
   const jawBoneRef = useRef<THREE.Bone | null>(null);
   const busyUntilRef = useRef(0);
   const speechTimerRef = useRef<number | undefined>(undefined);
+  const bubbleTimerRef = useRef<number | undefined>(undefined);
   const movementTimerRef = useRef<number | undefined>(undefined);
-  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean; headTap: boolean } | null>(null);
 
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) || 'Ready');
   const [language, setLanguage] = useState<PetLanguage>(storedLanguage);
@@ -108,14 +110,26 @@ export function PetCompanion() {
     }
   }, []);
 
-  const say = useCallback((line: string) => {
+  const say = useCallback((line: string, actionWhileSpeaking: PetAction = 'talking') => {
     const resolved = line.replaceAll('{name}', name.trim() || 'Ready');
     setSpeech(resolved);
     setShowBubble(true);
-    setPetAction('talking');
+    if (bubbleTimerRef.current) window.clearTimeout(bubbleTimerRef.current);
+    setPetAction(actionWhileSpeaking);
     window.speechSynthesis?.cancel();
+
+    const finishSpeech = () => {
+      currentActionRef.current = 'idle';
+      setAction('idle');
+      busyUntilRef.current = 0;
+      if (bubbleTimerRef.current) window.clearTimeout(bubbleTimerRef.current);
+      bubbleTimerRef.current = window.setTimeout(() => setShowBubble(false), 2200);
+    };
+
     if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-      setPetAction('talking', Math.max(1800, resolved.length * 55));
+      const duration = Math.max(1800, resolved.length * 55);
+      setPetAction(actionWhileSpeaking, duration);
+      bubbleTimerRef.current = window.setTimeout(() => setShowBubble(false), duration + 2200);
       return;
     }
 
@@ -123,23 +137,15 @@ export function PetCompanion() {
     utterance.lang = language === 'tl' ? 'fil-PH' : 'en-US';
     utterance.rate = 0.92;
     utterance.pitch = 1.12;
-    utterance.onend = () => {
-      currentActionRef.current = 'idle';
-      setAction('idle');
-      busyUntilRef.current = 0;
-    };
-    utterance.onerror = () => {
-      currentActionRef.current = 'idle';
-      setAction('idle');
-      busyUntilRef.current = 0;
-    };
+    utterance.onend = finishSpeech;
+    utterance.onerror = finishSpeech;
     busyUntilRef.current = Date.now() + Math.max(2500, resolved.length * 90);
     window.speechSynthesis.speak(utterance);
   }, [language, name, setPetAction]);
 
-  const sayRandom = useCallback((kind: keyof typeof LINES[PetLanguage]) => {
+  const sayRandom = useCallback((kind: keyof typeof LINES[PetLanguage], actionWhileSpeaking?: PetAction) => {
     const options = LINES[language][kind];
-    say(options[Math.floor(Math.random() * options.length)]);
+    say(options[Math.floor(Math.random() * options.length)], actionWhileSpeaking);
   }, [language, say]);
 
   useEffect(() => {
@@ -230,12 +236,23 @@ export function PetCompanion() {
       const current = currentActionRef.current;
       const elapsed = clock.elapsedTime;
       if (petRoot.children.length && !actionsRef.current[current]) {
-        petRoot.position.y = current === 'sleep' ? -0.12 : Math.sin(elapsed * (current === 'run' ? 13 : 4)) * (current === 'idle' ? 0.025 : 0.07);
-        petRoot.rotation.z = current === 'roll' ? Math.sin(elapsed * 8) * 0.8 : Math.sin(elapsed * 5) * (current === 'play' ? 0.11 : 0.025);
-        if (current === 'jump') petRoot.position.y = Math.abs(Math.sin(elapsed * 7)) * 0.38;
+        petRoot.position.y = current === 'sleep'
+          ? -0.12
+          : current === 'jump'
+            ? Math.abs(Math.sin(elapsed * 7)) * 0.38
+            : Math.sin(elapsed * (current === 'run' ? 13 : 4)) * (current === 'idle' ? 0.025 : 0.07);
+        petRoot.rotation.z = current === 'roll'
+          ? Math.sin(elapsed * 8) * 0.8
+          : current === 'play'
+            ? Math.sin(elapsed * 5) * 0.11
+            : current === 'eat'
+              ? Math.sin(elapsed * 8) * 0.045
+              : current === 'sleep'
+                ? -0.12
+                : Math.sin(elapsed * 5) * 0.025;
       }
 
-      const speaking = current === 'talking';
+      const speaking = current === 'talking' || current === 'eat';
       const mouthOpen = speaking ? (0.18 + Math.max(0, Math.sin(elapsed * 19)) * 0.75) : 0;
       for (const { mesh, index } of mouthTargetsRef.current) {
         if (mesh.morphTargetInfluences) mesh.morphTargetInfluences[index] = mouthOpen;
@@ -258,6 +275,7 @@ export function PetCompanion() {
       window.removeEventListener('resize', onResize);
       window.speechSynthesis?.cancel();
       if (speechTimerRef.current) window.clearTimeout(speechTimerRef.current);
+      if (bubbleTimerRef.current) window.clearTimeout(bubbleTimerRef.current);
       mixerRef.current?.stopAllAction();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
@@ -316,7 +334,10 @@ export function PetCompanion() {
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: position.x, originY: position.y, moved: false };
+    const canvas = canvasRef.current;
+    const canvasBounds = canvas?.getBoundingClientRect();
+    const headTap = event.target === canvas && !!canvasBounds && event.clientY - canvasBounds.top < canvasBounds.height * 0.58;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: position.x, originY: position.y, moved: false, headTap };
     setIsDragging(true);
   };
 
@@ -333,31 +354,33 @@ export function PetCompanion() {
       y: Math.max(4, Math.min(window.innerHeight - PET_SIZE - NAV_CLEARANCE, drag.originY + dy)),
     });
     busyUntilRef.current = Date.now() + 1800;
+    currentActionRef.current = 'play';
+    setAction('play');
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const wasDragged = drag.moved;
+    const { moved, headTap } = drag;
     dragRef.current = null;
     setIsDragging(false);
-    if (!wasDragged) sayRandom('pet');
+    if (moved) {
+      setPetAction('idle');
+      busyUntilRef.current = Date.now() + 1800;
+    } else if (headTap) {
+      sayRandom('pet', 'play');
+    }
   };
 
-  const feed = () => {
-    setPetAction('play', 1800);
-    sayRandom('feed');
-  };
-
-  const play = () => {
-    setPetAction('play', 4500);
-    sayRandom('play');
-  };
+  const feed = () => sayRandom('feed', 'eat');
+  const play = () => sayRandom('play', 'play');
 
   const sleep = () => {
     window.speechSynthesis?.cancel();
     setSpeech(language === 'tl' ? 'Idlip muna ako...' : 'Taking a little nap...');
     setShowBubble(true);
+    if (bubbleTimerRef.current) window.clearTimeout(bubbleTimerRef.current);
+    bubbleTimerRef.current = window.setTimeout(() => setShowBubble(false), 4000);
     setPetAction('sleep', 8000);
   };
 
@@ -374,8 +397,8 @@ export function PetCompanion() {
         onPointerCancel={handlePointerUp}
         role="button"
         tabIndex={0}
-        aria-label={`Pet ${name || 'Ready'}. Drag to move.`}
-        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') sayRandom('pet'); }}
+        aria-label={`Pet ${name || 'Ready'}. Drag to move or gently pet the head.`}
+        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') sayRandom('pet', 'play'); }}
       >
         {showBubble && <div className={`pet-speech-bubble ${facingLeft ? 'bubble-flip' : ''}`} dir="auto">{speech}</div>}
         <canvas ref={canvasRef} className="pet-model-canvas" aria-label="Animated puppy" />
