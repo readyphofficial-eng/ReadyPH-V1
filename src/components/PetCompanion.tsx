@@ -79,6 +79,9 @@ export function PetCompanion() {
   const currentActionRef = useRef<PetAction>('idle');
   const mouthTargetsRef = useRef<Array<{ mesh: THREE.Mesh; index: number }>>([]);
   const jawBoneRef = useRef<THREE.Bone | null>(null);
+  const headBoneRef = useRef<THREE.Bone | null>(null);
+  const tailBoneRef = useRef<THREE.Bone | null>(null);
+  const earBonesRef = useRef<Array<THREE.Bone>>([]);
   const busyUntilRef = useRef(0);
   const speechTimerRef = useRef<number | undefined>(undefined);
   const bubbleTimerRef = useRef<number | undefined>(undefined);
@@ -213,7 +216,13 @@ export function PetCompanion() {
             }
           }
         }
-        if ((object as THREE.Bone).isBone && /jaw|mandible/i.test(object.name)) jawBoneRef.current = object as THREE.Bone;
+        if ((object as THREE.Bone).isBone) {
+          const bone = object as THREE.Bone;
+          if (/head|neck/i.test(bone.name)) headBoneRef.current = bone;
+          if (/tail/i.test(bone.name)) tailBoneRef.current = bone;
+          if (/ear/i.test(bone.name)) earBonesRef.current.push(bone);
+          if (/jaw|mandible/i.test(bone.name)) jawBoneRef.current = bone;
+        }
       });
 
       const initialAction = mapped[currentActionRef.current] || mapped.idle;
@@ -235,21 +244,52 @@ export function PetCompanion() {
 
       const current = currentActionRef.current;
       const elapsed = clock.elapsedTime;
-      if (petRoot.children.length && !actionsRef.current[current]) {
-        petRoot.position.y = current === 'sleep'
-          ? -0.12
+      const walking = current === 'walk' || current === 'run';
+      const gaitSpeed = current === 'run' ? 13 : 8;
+      const directionBias = facingLeft ? -1 : 1;
+
+      const bodyBob = current === 'sleep'
+        ? -0.12
+        : walking
+          ? Math.abs(Math.sin(elapsed * gaitSpeed)) * (current === 'run' ? 0.095 : 0.045)
           : current === 'jump'
             ? Math.abs(Math.sin(elapsed * 7)) * 0.38
-            : Math.sin(elapsed * (current === 'run' ? 13 : 4)) * (current === 'idle' ? 0.025 : 0.07);
-        petRoot.rotation.z = current === 'roll'
-          ? Math.sin(elapsed * 8) * 0.8
+            : Math.sin(elapsed * 2.1) * 0.012;
+
+      const bodyRoll = current === 'roll'
+        ? Math.sin(elapsed * 8) * 0.8
+        : walking
+          ? Math.sin(elapsed * gaitSpeed * 0.5) * 0.035
           : current === 'play'
             ? Math.sin(elapsed * 5) * 0.11
             : current === 'eat'
               ? Math.sin(elapsed * 8) * 0.045
               : current === 'sleep'
-                ? -0.12
-                : Math.sin(elapsed * 5) * 0.025;
+                ? -0.1
+                : Math.sin(elapsed * 1.8) * 0.012;
+
+      petRoot.position.y = THREE.MathUtils.damp(petRoot.position.y, bodyBob, 7, delta);
+      petRoot.rotation.z = THREE.MathUtils.damp(petRoot.rotation.z, bodyRoll, 6, delta);
+      petRoot.rotation.x = THREE.MathUtils.damp(petRoot.rotation.x, current === 'sleep' ? -0.08 : walking ? 0.025 : 0, 5, delta);
+      petRoot.rotation.y = THREE.MathUtils.damp(petRoot.rotation.y, (walking ? directionBias * 1.05 : 0), 3.8, delta);
+
+      const headPitch = current === 'talking' ? -0.18 : current === 'sleep' ? 0.3 : current === 'eat' ? -0.12 : 0.08;
+      const headTurn = facingLeft ? 0.18 : -0.18;
+      if (headBoneRef.current) {
+        headBoneRef.current.rotation.x = THREE.MathUtils.damp(headBoneRef.current.rotation.x, headPitch, 5, delta);
+        headBoneRef.current.rotation.y = THREE.MathUtils.damp(headBoneRef.current.rotation.y, headTurn, 4, delta);
+      }
+
+      const tailSwing = current === 'sleep' ? -0.55 : current === 'run' ? Math.sin(elapsed * 18) * 1.15 : current === 'walk' ? Math.sin(elapsed * 10) * 0.8 : current === 'play' ? Math.sin(elapsed * 9) * 1.4 : Math.sin(elapsed * 2.4) * 0.25;
+      if (tailBoneRef.current) {
+        tailBoneRef.current.rotation.z = THREE.MathUtils.damp(tailBoneRef.current.rotation.z, tailSwing, 7, delta);
+        tailBoneRef.current.rotation.x = THREE.MathUtils.damp(tailBoneRef.current.rotation.x, current === 'sleep' ? 0.7 : 0.15, 4, delta);
+      }
+
+      for (const ear of earBonesRef.current) {
+        const earDrift = Math.sin(elapsed * (current === 'run' ? 18 : 10) + ear.position.x) * 0.45;
+        const earTarget = current === 'sleep' ? 0.7 : earDrift;
+        ear.rotation.z = THREE.MathUtils.damp(ear.rotation.z, earTarget, 5, delta);
       }
 
       const speaking = current === 'talking' || current === 'eat';
@@ -290,11 +330,14 @@ export function PetCompanion() {
       actionsRef.current = {};
       mouthTargetsRef.current = [];
       jawBoneRef.current = null;
+      headBoneRef.current = null;
+      tailBoneRef.current = null;
+      earBonesRef.current = [];
     };
   }, []);
 
   useEffect(() => {
-    const next = actionsRef.current[action];
+    const next = actionsRef.current[action] || actionsRef.current.idle;
     const mixer = mixerRef.current;
     if (!mixer || !next) return;
     for (const existing of Object.values(actionsRef.current)) {
@@ -309,7 +352,8 @@ export function PetCompanion() {
       if (!active) return;
       if (Date.now() >= busyUntilRef.current && !dragRef.current) {
         const destination = findSafePosition();
-        setFacingLeft(destination.x < position.x);
+        const direction = destination.x < position.x ? -1 : 1;
+        setFacingLeft(direction < 0);
         setPosition(destination);
         const movement: PetAction = Math.random() < 0.2 ? 'run' : 'walk';
         setPetAction(movement, 2500 + Math.random() * 900);
