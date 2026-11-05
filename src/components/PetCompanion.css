@@ -1,0 +1,199 @@
+.pet-companion-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  font-family: 'Fredoka', system-ui, sans-serif;
+}
+
+.pet-wanderer {
+  position: fixed;
+  width: 112px;
+  height: 128px;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: left 3.2s ease-in-out, top 3.2s ease-in-out;
+  transform-origin: center;
+}
+
+.pet-wanderer.pet-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.pet-model-canvas {
+  display: block;
+  width: 112px;
+  height: 112px;
+  background: transparent;
+  filter: drop-shadow(0 3px 4px rgba(48, 36, 20, 0.16));
+  pointer-events: none;
+}
+
+.pet-speech-bubble {
+  position: absolute;
+  z-index: 2;
+  bottom: 112px;
+  left: -15px;
+  width: max-content;
+  max-width: min(220px, 62vw);
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.16);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+  transform: scaleX(var(--bubble-direction, 1));
+  user-select: text;
+  pointer-events: none;
+}
+
+.pet-speech-bubble.bubble-flip {
+  --bubble-direction: -1;
+  left: auto;
+  right: -15px;
+  border-radius: 14px 14px 4px 14px;
+}
+
+.pet-name-tag {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  max-width: 90px;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%) scaleX(var(--name-direction, 1));
+}
+
+.pet-loading {
+  position: absolute;
+  color: #f59e0b;
+  font-size: 24px;
+  animation: pet-paw-pulse 0.9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.pet-menu-toggle {
+  position: fixed;
+  right: max(14px, calc((100vw - 480px) / 2 + 14px));
+  bottom: 82px;
+  z-index: 70;
+  width: 42px;
+  height: 42px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fb923c, #f472b6);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.pet-control-card {
+  position: fixed;
+  right: max(12px, calc((100vw - 480px) / 2 + 12px));
+  bottom: 132px;
+  z-index: 71;
+  width: min(260px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.2);
+  color: #334155;
+  pointer-events: auto;
+}
+
+.pet-control-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pet-close-button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pet-field-label {
+  display: block;
+  margin: 8px 0 4px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pet-name-input,
+.pet-language-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  outline-color: #fb923c;
+}
+
+.pet-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.pet-action-buttons button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 11px;
+  background: #fff7ed;
+  color: #7c2d12;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-action-buttons button:hover,
+.pet-menu-toggle:hover {
+  filter: brightness(0.97);
+}
+
+@keyframes pet-paw-pulse {
+  from { transform: scale(0.85); opacity: 0.65; }
+  to { transform: scale(1.12); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-wanderer { transition-duration: 0.01ms; }
+  .pet-loading { animation-duration: 2s; }
+}
