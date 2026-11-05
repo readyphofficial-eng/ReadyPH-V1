@@ -73,6 +73,11 @@ function App() {
     syncFromCloud();
   }, []);
 
+  useEffect(() => {
+    document.body.dataset.readyphPage = page;
+    window.dispatchEvent(new CustomEvent('readyph:page-change', { detail: { page } }));
+  }, [page]);
+
   const navigate = (p: string) => {
     if (p === 'owner' && !isOwner()) {
       alert(t('owner.only'));
@@ -118,17 +123,13 @@ function App() {
           );
         }
         if (selectedGame && gameView === 'play') {
-          // the game writes the stage it is actually on (works for replays too)
           const liveStage = parseInt(localStorage.getItem(`curStage_${selectedGame.id}`) ?? '0', 10);
           const shownStage = liveStage > 0 ? liveStage : playedStage;
           const diff = getDifficultyForStage(shownStage);
           return (
             <div className="min-h-screen pb-28">
               <div className={`bg-gradient-to-br ${selectedGame.color} px-5 pt-10 pb-6 rounded-b-3xl shadow-lg`}>
-                <button
-                  onClick={() => setGameView('map')}
-                  className="text-white text-sm mb-2 active:scale-95 transition"
-                >← Stage Map</button>
+                <button onClick={() => setGameView('map')} className="text-white text-sm mb-2 active:scale-95 transition">← Stage Map</button>
                 <h1 className="text-2xl font-bold text-white">{selectedGame.emoji} {selectedGame.name}</h1>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-white/80 text-xs">Stage {shownStage} / {TOTAL_STAGES}</span>
@@ -137,9 +138,7 @@ function App() {
                   </span>
                 </div>
               </div>
-              <div className="px-4 mt-4">
-                {selectedGame.render((score) => addGameScore(selectedGame.name, score))}
-              </div>
+              <div className="px-4 mt-4">{selectedGame.render((score) => addGameScore(selectedGame.name, score))}</div>
             </div>
           );
         }
@@ -154,18 +153,11 @@ function App() {
                 const stage = getStageProgress(g.id);
                 const diff = getDifficultyForStage(stage);
                 return (
-                  <button
-                    key={g.id}
-                    onClick={() => openGame(g)}
-                    className={`bg-gradient-to-br ${g.color} rounded-2xl p-4 shadow-lg active:scale-95 transition animate-pop relative overflow-hidden`}
-                    style={{ animationDelay: `${i * 0.05}s` }}
-                  >
+                  <button key={g.id} onClick={() => openGame(g)} className={`bg-gradient-to-br ${g.color} rounded-2xl p-4 shadow-lg active:scale-95 transition animate-pop relative overflow-hidden`} style={{ animationDelay: `${i * 0.05}s` }}>
                     <div className="text-3xl mb-1">{g.emoji}</div>
                     <p className="text-white font-bold text-xs text-center">{g.name}</p>
                     <div className="mt-1.5 flex items-center justify-center gap-1">
-                      <span className="text-white/70 text-[9px]">Stage {stage}</span>
-                      <span className="text-white/50 text-[9px]">•</span>
-                      <span className="text-white/70 text-[9px]">{DIFFICULTY_LABELS[diff]}</span>
+                      <span className="text-white/70 text-[9px]">Stage {stage}</span><span className="text-white/50 text-[9px]">•</span><span className="text-white/70 text-[9px]">{DIFFICULTY_LABELS[diff]}</span>
                     </div>
                   </button>
                 );
@@ -208,21 +200,11 @@ function App() {
       <Confetti trigger={confetti} />
       <div className="max-w-[480px] mx-auto min-h-screen relative shadow-xl z-10" style={{ background: 'var(--bg, #fff7ed)' }}>
         {renderPage()}
-
-        {/* Bottom Nav */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50">
           <div className="bg-white/95 backdrop-blur rounded-t-3xl border-t border-gray-100 px-2 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {navItems.map(btn => (
-                <button
-                  key={btn.id}
-                  onClick={() => navigate(btn.id)}
-                  className={`flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1.5 flex-shrink-0 transition ${
-                    page === btn.id
-                      ? `bg-gradient-to-br ${btn.color} shadow`
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
+                <button key={btn.id} onClick={() => navigate(btn.id)} className={`flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1.5 flex-shrink-0 transition ${page === btn.id ? `bg-gradient-to-br ${btn.color} shadow` : 'hover:bg-gray-100'}`}>
                   <div className={page === btn.id ? 'text-white' : 'text-gray-400'}>{btn.icon}</div>
                   <span className={`text-[9px] font-bold whitespace-nowrap ${page === btn.id ? 'text-white' : 'text-gray-400'}`}>{btn.label}</span>
                 </button>
@@ -231,39 +213,26 @@ function App() {
           </div>
         </div>
       </div>
-
-      {/* Daily Streak Popup */}
       {streakPopup && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl animate-bounce-in max-w-xs">
-            <div className="text-5xl mb-3 animate-float">🔥</div>
-            <h2 className="font-bold text-xl text-gray-700 mb-1">{t('streak.popup_title')}</h2>
-            <p className="text-gray-400 text-sm">{t('streak.day')} {streakDay}</p>
+            <div className="text-5xl mb-3 animate-float">🔥</div><h2 className="font-bold text-xl text-gray-700 mb-1">{t('streak.popup_title')}</h2><p className="text-gray-400 text-sm">{t('streak.day')} {streakDay}</p>
           </div>
         </div>
       )}
-
-      {/* Install PWA Popup */}
       {showInstall && canInstall() && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1500] w-full max-w-[480px] px-4">
           <div className="bg-gradient-to-r from-candy-blue to-candy-purple rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-slide-up">
-            <Download size={24} className="text-white flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-white font-bold text-sm">{t('pwa.install')}</p>
-              <p className="text-white/80 text-xs">{t('pwa.install_desc')}</p>
-            </div>
-            <button onClick={() => { promptInstall(); setShowInstall(false); }} className="bg-white rounded-full px-3 py-1.5 text-candy-purple font-bold text-xs whitespace-nowrap">{t('pwa.install_btn')}</button>
+            <Download size={24} className="text-white flex-shrink-0" /><div className="flex-1"><p className="text-white font-bold text-sm">{t('pwa.install')}</p><p className="text-white/80 text-xs">{t('pwa.install_desc')}</p></div>
+            <button onClick={() => { promptInstall(); setShowInstall(false); }} className="bg-white rounded-full px-3 py-1.5 text-candy-purple font-bold text-xs whitespace-nowrap">Install</button>
             <button onClick={() => setShowInstall(false)} className="text-white/70"><X size={18} /></button>
           </div>
         </div>
       )}
-
-      {/* Screen Time Alert */}
       {screenAlert && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl animate-bounce-in max-w-xs">
-            <div className="text-5xl mb-3">😴</div>
-            <h2 className="font-bold text-xl text-gray-700 mb-2">{t('screentime.alert')}</h2>
+            <div className="text-5xl mb-3">😴</div><h2 className="font-bold text-xl text-gray-700 mb-2">{t('screentime.alert')}</h2>
             <button onClick={() => setScreenAlert(false)} className="mt-3 bg-primary-500 rounded-full px-6 py-2 text-white font-bold text-sm">OK</button>
           </div>
         </div>
