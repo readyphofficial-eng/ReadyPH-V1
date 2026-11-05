@@ -20,7 +20,7 @@
   user-select: none;
   transition: left 3.2s cubic-bezier(0.2, 0.7, 0.25, 1), top 3.2s cubic-bezier(0.2, 0.7, 0.25, 1);
   transform-origin: center;
-  will-change: left, top;
+  will-change: left, top, transform;
 }
 
 .pet-wanderer.pet-dragging {
