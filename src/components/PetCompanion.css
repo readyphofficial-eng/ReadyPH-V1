@@ -18,8 +18,9 @@
   cursor: grab;
   touch-action: none;
   user-select: none;
-  transition: left 3.2s ease-in-out, top 3.2s ease-in-out;
+  transition: left 3.2s cubic-bezier(0.2, 0.7, 0.25, 1), top 3.2s cubic-bezier(0.2, 0.7, 0.25, 1);
   transform-origin: center;
+  will-change: left, top;
 }
 
 .pet-wanderer.pet-dragging {
@@ -34,6 +35,7 @@
   background: transparent;
   filter: drop-shadow(0 3px 4px rgba(48, 36, 20, 0.16));
   pointer-events: none;
+  will-change: transform;
 }
 
 .pet-speech-bubble {
@@ -78,7 +80,7 @@
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transform: translateX(-50%) scaleX(var(--name-direction, 1));
+  transform: translateX(-50%);
 }
 
 .pet-loading {
